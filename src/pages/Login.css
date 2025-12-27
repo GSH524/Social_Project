@@ -1,0 +1,214 @@
+/* Page Background - Mimicking the dark purple/blue/red mesh gradient */
+.login-page {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(
+      circle at 20% 20%, 
+      rgba(65, 20, 60, 0.8) 0%, 
+      rgba(0, 0, 0, 0) 50%
+    ),
+    radial-gradient(
+      circle at 80% 80%, 
+      rgba(30, 30, 80, 0.8) 0%, 
+      rgba(0, 0, 0, 0) 50%
+    ),
+    linear-gradient(135deg, #2b102f 0%, #151525 100%);
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+/* The Glass Card */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  /* Gradient background for the card itself (Reddish top -> Bluish bottom) */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  
+  /* The Blur Effect */
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  
+  /* Borders and Shape */
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  
+  padding: 40px 35px;
+  position: relative;
+  overflow: hidden;
+  animation: fadeUp 0.8s ease-out;
+}
+
+/* Subtle inner glow overlay */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Profile Icon Section */
+.profile-section {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.profile-icon {
+  font-size: 80px;
+  color: rgba(255, 255, 255, 0.3); /* Subtle silhouette look */
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2));
+}
+
+/* Input Groups - Underline Style */
+.input-group {
+  position: relative;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  transition: border-color 0.3s ease;
+}
+
+.input-group:focus-within {
+  border-bottom-color: #fff;
+}
+
+/* Icons inside Input */
+.input-icon {
+  color: #fff;
+  font-size: 1.1rem;
+  margin-right: 15px;
+  padding-bottom: 8px; /* Align with input text */
+}
+
+/* Actual Input Field */
+.underline-input {
+  background: transparent !important;
+  border: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  padding: 0 0 8px 0;
+  font-size: 1rem;
+  width: 100%;
+  height: auto;
+}
+
+.underline-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 300;
+}
+
+/* Password Toggle Eye */
+.password-toggle {
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  padding-bottom: 8px;
+  margin-left: 10px;
+  transition: color 0.3s;
+}
+
+.password-toggle:hover {
+  color: #fff;
+}
+
+/* Checkbox and Forgot Password */
+.options-row {
+  font-size: 0.9rem;
+}
+
+.custom-checkbox {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+.custom-checkbox:checked {
+  background-color: #fff;
+  border-color: #fff;
+}
+.form-check-label {
+  padding-left: 5px;
+  cursor: pointer;
+  font-weight: 300;
+}
+
+.forgot-link {
+  font-style: italic;
+  font-weight: 300;
+}
+.forgot-link:hover {
+  color: #fff !important;
+}
+
+/* Login Button */
+.btn-gradient-primary {
+  /* Gradient matching the image button (Dark Purple to Blue) */
+  background: linear-gradient(90deg, #4b1d58 0%, #3a3a8a 100%);
+  border: none;
+  border-radius: 50px; /* Pill shape */
+  color: white;
+  padding: 12px;
+  font-weight: 600;
+  letter-spacing: 1.5px; /* Spacing between letters like "LOGIN" */
+  text-transform: uppercase;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-gradient-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(75, 29, 88, 0.5);
+  color: #fff;
+  background: linear-gradient(90deg, #5e246e 0%, #4a4ab5 100%);
+}
+
+/* Google Button (Styled to fit theme) */
+.google-btn {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 45px;
+  height: 45px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.google-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
+}
+
+/* Alert Error */
+.custom-alert {
+  background: rgba(220, 53, 69, 0.2);
+  border: 1px solid rgba(220, 53, 69, 0.5);
+  color: #ffcccc;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  padding: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Animation */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

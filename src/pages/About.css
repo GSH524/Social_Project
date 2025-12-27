@@ -1,0 +1,265 @@
+/* --- Variables --- */
+:root {
+  --primary: #2563eb;
+  --dark-bg: #0f172a;
+  --text-light: #e2e8f0;
+  --text-white: #ffffff;
+  --accent: #f59e0b;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --transition: all 0.3s ease;
+}
+
+.about-page {
+  min-height: 100vh;
+  background-color: var(--dark-bg);
+  color: var(--text-light);
+  font-family: 'Inter', sans-serif;
+  padding-bottom: 80px;
+}
+
+/* --- Hero Section --- */
+.about-hero {
+  height: 60vh;
+  position: relative;
+  background-image: url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=2000&q=80");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), var(--dark-bg));
+}
+
+.about-hero-content {
+  position: relative;
+  z-index: 2;
+  animation: fadeUp 1s ease-out;
+}
+
+.about-hero-content h1 {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--text-white);
+  margin-bottom: 15px;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.about-hero-content p {
+  font-size: 1.3rem;
+  font-weight: 300;
+  color: #cbd5e1;
+}
+
+/* --- Container Utility --- */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* --- Company Overview (Glass Cards) --- */
+.about-section {
+  margin-bottom: 80px;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-top: -80px; /* Overlap Hero */
+  position: relative;
+  z-index: 5;
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.7); /* Darker glass for readability */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  border-radius: 16px;
+  padding: 35px;
+  text-align: center;
+  transition: var(--transition);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.glass-card:hover {
+  transform: translateY(-10px);
+  background: rgba(30, 41, 59, 0.9);
+  border-color: var(--primary);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.icon-box {
+  width: 60px;
+  height: 60px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin: 0 auto 20px;
+  transition: var(--transition);
+}
+
+.glass-card:hover .icon-box {
+  background: var(--primary);
+  color: white;
+  transform: scale(1.1);
+}
+
+.glass-card h2 {
+  color: var(--text-white);
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+.glass-card p {
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+/* --- Values Section --- */
+.values-section {
+  padding: 40px 0 80px;
+  text-align: center;
+}
+
+.section-header h2 {
+  font-size: 2.5rem;
+  color: var(--text-white);
+  margin-bottom: 10px;
+}
+
+.section-header .underline {
+  width: 60px;
+  height: 4px;
+  background: var(--primary);
+  margin: 0 auto 50px;
+  border-radius: 2px;
+}
+
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 30px;
+}
+
+.value-card {
+  background: var(--glass-bg);
+  border: var(--glass-border);
+  padding: 30px 20px;
+  border-radius: 12px;
+  transition: var(--transition);
+}
+
+.value-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-5px);
+}
+
+.value-icon {
+  font-size: 2.5rem;
+  color: var(--accent);
+  margin-bottom: 20px;
+}
+
+.value-card h4 {
+  color: var(--text-white);
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+/* --- Why Choose Us (Split Panel) --- */
+.glass-panel {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--glass-border);
+  border-radius: 20px;
+  overflow: hidden;
+  align-items: center;
+}
+
+.choose-content {
+  flex: 1;
+  padding: 50px;
+}
+
+.choose-content h2 {
+  color: var(--text-white);
+  font-size: 2rem;
+  margin-bottom: 15px;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 30px;
+}
+
+.feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+  font-size: 1.05rem;
+  color: var(--text-light);
+}
+
+.check-icon {
+  color: #10b981; /* Success Green */
+  font-size: 1.2rem;
+}
+
+.choose-image {
+  flex: 1;
+  height: 100%;
+  min-height: 400px;
+}
+
+.choose-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --- Animations --- */
+.fade-up {
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeUpAnim 0.8s forwards;
+}
+
+.delay-1 { animation-delay: 0.2s; }
+.delay-2 { animation-delay: 0.4s; }
+
+@keyframes fadeUpAnim {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 992px) {
+  .about-hero h1 { font-size: 2.5rem; }
+  .glass-panel { flex-direction: column; }
+  .choose-image { width: 100%; min-height: 250px; }
+  .choose-content { padding: 30px; }
+}
