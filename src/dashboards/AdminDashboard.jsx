@@ -167,8 +167,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-
-          <button onClick={() => { auth.signOut(); navigate('/login'); }} className="ml-2 p-2 text-red-400 hover:bg-red-500/10 rounded-full transition-colors"><LogOut size={20} /></button>
         </div>
       </nav>
 
