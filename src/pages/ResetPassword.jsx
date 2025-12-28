@@ -9,7 +9,6 @@ import {
   FaExclamationCircle,
   FaCheckCircle,
 } from "react-icons/fa";
-import "./ResetPassword.css";
 
 const ResetPassword = () => {
   const [email, setEmail] = useState("");
@@ -36,7 +35,7 @@ const ResetPassword = () => {
     try {
       await sendPasswordResetEmail(auth, trimmedEmail);
 
-      // ✅ Secure message (does not expose account existence)
+      // ✅ Secure message
       setInfo(
         "If an account exists for this email, a password reset link has been sent."
       );
@@ -57,37 +56,54 @@ const ResetPassword = () => {
     }
   };
 
+  // Custom complex gradient background style to match original design perfectly
+  const backgroundStyle = {
+    background: `
+      radial-gradient(at top left, #4a2c44 0%, transparent 50%),
+      radial-gradient(at top right, #3a2a52 0%, transparent 50%),
+      radial-gradient(at bottom left, #56324a 0%, transparent 50%),
+      radial-gradient(at bottom right, #2e2e5e 0%, transparent 50%),
+      #0f172a
+    `,
+  };
+
   return (
-    <div className="reset-page-bg">
-      <div className="glass-card">
+    <div 
+      className="min-h-screen w-full flex items-center justify-center p-5 font-sans text-white"
+      style={backgroundStyle}
+    >
+      {/* Glass Card */}
+      <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-10 rounded-3xl text-center relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">
+        
         {/* Header Icon */}
-        <div className="icon-header">
-          <div className="icon-circle">
+        <div className="flex justify-center mb-6">
+          <div className="w-[70px] h-[70px] bg-white/10 rounded-full flex items-center justify-center text-3xl text-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
             <FaLock />
           </div>
         </div>
 
-        <h2>Forgot Password?</h2>
-        <p className="sub-text">
+        <h2 className="text-2xl font-bold mb-3 tracking-wide">Forgot Password?</h2>
+        <p className="text-slate-400 text-sm mb-8 leading-relaxed">
           Enter your email and we'll send you a link to reset your password.
         </p>
 
         {/* Alerts */}
         {error && (
-          <div className="alert-box error">
-            <FaExclamationCircle /> {error}
+          <div className="bg-red-500/20 text-red-300 border border-red-500/30 p-3 rounded-lg mb-6 flex items-center gap-3 text-sm text-left">
+            <FaExclamationCircle className="text-lg flex-shrink-0" /> {error}
           </div>
         )}
 
         {info && (
-          <div className="alert-box success">
-            <FaCheckCircle /> {info}
+          <div className="bg-green-500/20 text-green-300 border border-green-500/30 p-3 rounded-lg mb-6 flex items-center gap-3 text-sm text-left">
+            <FaCheckCircle className="text-lg flex-shrink-0" /> {info}
           </div>
         )}
 
-        <form onSubmit={handleReset} className="reset-form">
-          <div className="input-group-underline">
-            <span className="input-icon">
+        <form onSubmit={handleReset} className="flex flex-col gap-2">
+          {/* Input Group */}
+          <div className="relative flex items-center border-b border-white/30 pb-2 mb-6 transition-colors duration-300 focus-within:border-blue-500 group">
+            <span className="text-slate-300 text-lg mr-3 group-focus-within:text-blue-400 transition-colors">
               <FaEnvelope />
             </span>
             <input
@@ -96,16 +112,24 @@ const ResetPassword = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="w-full bg-transparent border-none outline-none text-white text-base placeholder-white/50"
             />
           </div>
 
-          <button type="submit" className="gradient-btn" disabled={loading}>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white font-semibold shadow-lg shadow-blue-600/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+          >
             {loading ? "Sending..." : "Send Reset Link"}
           </button>
         </form>
 
-        <div className="reset-footer">
-          <Link to="/login" className="back-link">
+        <div className="mt-8">
+          <Link
+            to="/login"
+            className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-colors text-sm font-medium"
+          >
             <FaArrowLeft /> Back to Login
           </Link>
         </div>

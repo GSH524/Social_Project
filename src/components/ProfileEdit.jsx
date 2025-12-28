@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaLock, FaCamera } from "react-icons/fa";
-import "./ProfileEdit.css"; // Import the new CSS
 
 const ProfileEdit = ({ onSave, onCancel, initialData }) => {
   const [formData, setFormData] = useState({
@@ -75,42 +74,58 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
   };
 
   return (
-    <div className="edit-form-wrapper">
-      <div className="edit-header">
-        <h4>Edit Profile Details</h4>
-        <p className="text-muted">Update your personal information and address.</p>
+    <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-slate-100 p-6 md:p-8">
+      
+      {/* --- Header --- */}
+      <div className="text-center mb-8">
+        <h4 className="text-2xl font-bold text-slate-800">Edit Profile Details</h4>
+        <p className="text-slate-500 mt-1">Update your personal information and address.</p>
       </div>
       
       {/* --- Avatar Upload Section --- */}
-      <div className="avatar-section">
-        <label htmlFor="file-upload" className="avatar-wrapper">
+      <div className="flex flex-col items-center mb-10">
+        <label htmlFor="file-upload" className="relative w-32 h-32 cursor-pointer group mb-3">
           {formData.profileImage ? (
             <>
-              <img src={formData.profileImage} alt="Profile" className="avatar-image" />
-              <div className="avatar-overlay"><FaCamera size={24} /></div>
+              <img 
+                src={formData.profileImage} 
+                alt="Profile" 
+                className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg" 
+              />
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <FaCamera size={24} />
+              </div>
             </>
           ) : (
-            <div className="avatar-placeholder">
+            <div className="w-full h-full rounded-full bg-slate-50 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 group-hover:border-blue-400 group-hover:text-blue-500 transition-colors">
               <FaCamera size={24} className="mb-2" />
-              <small>Upload</small>
+              <span className="text-xs font-medium">Upload</span>
             </div>
           )}
         </label>
-        <label htmlFor="file-upload" className="avatar-label-text">Change Profile Photo</label>
-        <input id="file-upload" type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} />
+        <label htmlFor="file-upload" className="text-sm font-semibold text-blue-600 cursor-pointer hover:text-blue-700">
+          Change Profile Photo
+        </label>
+        <input 
+          id="file-upload" 
+          type="file" 
+          accept="image/*" 
+          onChange={handleImageChange} 
+          className="hidden" 
+        />
       </div>
 
       {/* --- Form Grid --- */}
-      <div className="form-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* Full Name */}
-        <div className="form-group">
-          <label className="form-label">Full Name</label>
-          <div className="input-wrapper">
-            <FaUser className="input-icon" />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-slate-700">Full Name</label>
+          <div className="relative">
+            <FaUser className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input 
               type="text" 
-              className="form-control"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               placeholder="John Doe" 
               name="fullName"
               value={formData.fullName} 
@@ -121,13 +136,13 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
         </div>
 
         {/* Mobile */}
-        <div className="form-group">
-          <label className="form-label">Mobile Number</label>
-          <div className="input-wrapper">
-            <FaPhone className="input-icon" style={{transform: 'scaleX(-1)'}}/>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-slate-700">Mobile Number</label>
+          <div className="relative">
+            <FaPhone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transform -scale-x-100" />
             <input 
               type="tel" 
-              className="form-control"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               placeholder="+91 98765 43210" 
               name="mobile"
               value={formData.mobile} 
@@ -138,13 +153,13 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
         </div>
 
         {/* Email (Full Width) */}
-        <div className="form-group full-width">
-          <label className="form-label">Email Address</label>
-          <div className="input-wrapper">
-            <FaEnvelope className="input-icon" />
+        <div className="col-span-1 md:col-span-2 flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-slate-700">Email Address</label>
+          <div className="relative">
+            <FaEnvelope className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input 
               type="email" 
-              className="form-control"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-sm cursor-not-allowed"
               value={formData.email} 
               readOnly 
               disabled
@@ -153,12 +168,12 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
         </div>
 
         {/* Address (Full Width) */}
-        <div className="form-group full-width">
-          <label className="form-label">Billing Address</label>
-          <div className="input-wrapper">
-            <FaMapMarkerAlt className="input-icon" style={{top: '1rem'}} />
+        <div className="col-span-1 md:col-span-2 flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-slate-700">Billing Address</label>
+          <div className="relative">
+            <FaMapMarkerAlt className="absolute left-3.5 top-3.5 text-slate-400 pointer-events-none" />
             <textarea
-              className="form-control"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-h-[80px] resize-y"
               placeholder="Enter your full address"
               name="address"
               value={formData.address}
@@ -170,43 +185,51 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
         </div>
 
         {/* --- Security Section Header --- */}
-        <div className="full-width mt-3">
-            <h6 className="text-dark fw-bold border-bottom pb-2">Security</h6>
+        <div className="col-span-1 md:col-span-2 mt-4">
+            <h6 className="text-slate-800 font-bold border-b border-slate-200 pb-2">Security</h6>
         </div>
 
         {/* Password */}
-        <div className="form-group">
-          <label className="form-label">New Password</label>
-          <div className="input-wrapper">
-            <FaLock className="input-icon" />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-slate-700">New Password</label>
+          <div className="relative">
+            <FaLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input 
               type={showPassword ? "text" : "password"} 
-              className="form-control"
+              className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               placeholder="Leave blank to keep current" 
               name="password"
               value={formData.password} 
               onChange={handleChange} 
             />
-            <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+            <button 
+              type="button" 
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+              onClick={() => setShowPassword(!showPassword)}
+            >
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
         </div>
 
         {/* Confirm Password */}
-        <div className="form-group">
-          <label className="form-label">Confirm Password</label>
-          <div className="input-wrapper">
-            <FaLock className="input-icon" />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-slate-700">Confirm Password</label>
+          <div className="relative">
+            <FaLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input 
               type={showConfirmPassword ? "text" : "password"} 
-              className="form-control"
+              className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               placeholder="Re-enter new password" 
               name="confirmPassword"
               value={formData.confirmPassword} 
               onChange={handleChange} 
             />
-            <button type="button" className="password-toggle" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+            <button 
+              type="button" 
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
               {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
@@ -215,10 +238,10 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
       </div>
 
       {/* --- Actions --- */}
-      <div className="form-actions">
+      <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-10 pt-6 border-t border-slate-100">
         <button
           type="button"
-          className="btn-action btn-secondary"
+          className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={onCancel}
           disabled={loading}
         >
@@ -226,7 +249,7 @@ const ProfileEdit = ({ onSave, onCancel, initialData }) => {
         </button>
         <button
           type="button"
-          className="btn-action btn-primary"
+          className="px-6 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm hover:shadow-md transition-all disabled:opacity-70 disabled:cursor-not-allowed"
           onClick={handleSave}
           disabled={loading}
         >

@@ -5,8 +5,10 @@ import AuthProvider from "./context/AuthProvider.jsx"
 import { BrowserRouter } from "react-router-dom";
 import { Provider } from 'react-redux';
 import { store } from './store.js';
-import "/node_modules/bootstrap/dist/css/bootstrap.css";
-import 'react-toastify/dist/ReactToastify.css';
+import "bootstrap/dist/css/bootstrap.css";
+import "./index.css"
+import "react-toastify/dist/ReactToastify.css";
+
 
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
