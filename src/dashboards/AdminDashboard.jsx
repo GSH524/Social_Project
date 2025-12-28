@@ -79,7 +79,7 @@ const AdminDashboard = () => {
       if(auth.currentUser) {
         try {
           const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
-          if(snap.exists()) setAdminProfile({ ...snap.data(), role: 'Super Admin' });
+          if(snap.exists()) setAdminProfile({ ...snap.data(), role: 'Admin' });
         } catch(e) { console.log("Profile not found"); }
       }
     };
@@ -132,7 +132,7 @@ const AdminDashboard = () => {
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           
-          <h2 className="text-2xl font-bold tracking-tight text-white">Vajra<span className="text-violet-500">Admin</span></h2>
+          <h2 className="text-2xl font-bold tracking-tight text-white">GSH&nbsp;<span className="text-violet-500">Admin</span></h2>
         </div>
 
         {/* Center: Desktop Navigation (Hidden on Mobile) */}
@@ -155,11 +155,6 @@ const AdminDashboard = () => {
 
         {/* Right: Profile & Actions */}
         <div className="flex items-center gap-3 lg:gap-4">
-          <button className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-full hover:bg-white/10 transition-colors relative">
-            <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-
           <div className="h-8 w-px bg-white/10 mx-1 hidden sm:block"></div>
 
           <div 
@@ -203,14 +198,6 @@ const AdminDashboard = () => {
                 ))}
                 
                 <div className="w-full h-px bg-white/10 my-4"></div>
-
-                <button 
-                    onClick={() => { auth.signOut(); navigate('/login'); }} 
-                    className="w-full flex items-center gap-4 px-6 py-4 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-                >
-                    <LogOut size={20} />
-                    <span className="text-lg">Logout</span>
-                </button>
             </div>
         </div>
       )}
