@@ -125,40 +125,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- NEW SECTION: FEATURED DROP --- */}
-      <section className="max-w-7xl mx-auto px-4 mb-24">
-        <div className="grid md:grid-cols-2 gap-12 items-center bg-slate-800/30 rounded-3xl p-6 md:p-12 border border-slate-700/50">
-           <div className="order-2 md:order-1 relative rounded-2xl overflow-hidden h-[400px] md:h-[500px]">
-              <img 
-                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=2000&auto=format&fit=crop" 
-                alt="Featured" 
-                className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute top-4 left-4 bg-white text-black font-bold px-3 py-1 rounded text-xs uppercase tracking-widest">
-                Limited Edition
-              </div>
-           </div>
-           <div className="order-1 md:order-2 text-left">
-              <h4 className="text-blue-400 font-bold uppercase tracking-widest mb-2">This Week's Drop</h4>
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">The Urban <br/>Traveler Set</h2>
-              <p className="text-slate-400 text-lg mb-8 leading-relaxed">
-                Designed for the digital nomad. Water-resistant fabrics meeting ergonomic design. 
-                Perfect for your daily commute or your next big adventure.
-              </p>
-              <div className="flex gap-4 items-center mb-8">
-                 <div className="text-3xl font-bold text-white">₹2,499</div>
-                 <div className="text-lg text-slate-500 line-through">₹4,999</div>
-              </div>
-              <button 
-                className="px-8 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-full font-bold transition-colors"
-                onClick={() => navigate('/shop')}
-              >
-                Shop the Drop
-              </button>
-           </div>
-        </div>
-      </section>
-
       {/* --- CATEGORY FILTER --- */}
       <section id="shop" className="px-4 mb-12 text-center">
         <h2 className="text-2xl md:text-3xl font-bold mb-8">Shop by Category</h2>
