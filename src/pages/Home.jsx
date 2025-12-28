@@ -10,7 +10,9 @@ import {
   FaShieldAlt,
   FaUndo,
   FaStar,
-  FaArrowRight
+  FaArrowRight,
+  FaQuoteLeft,
+  FaEnvelope
 } from "react-icons/fa";
 import { products } from "../data/dataUtils";
 
@@ -60,71 +62,114 @@ const Home = () => {
   };
 
   return (
-    <main className="min-h-screen bg-slate-900 text-slate-50 font-sans selection:bg-blue-500 selection:text-white">
+    <main className="min-h-screen bg-slate-900 text-slate-50 font-sans selection:bg-blue-500 selection:text-white overflow-x-hidden">
       
       {/* --- HERO SECTION --- */}
-      <section className="relative h-[85vh] flex items-center justify-center text-center px-4 overflow-hidden">
+      <section className="relative h-[80vh] md:h-[90vh] flex items-center justify-center text-center px-4">
         
         {/* Background Image */}
         <div 
-          className="absolute inset-0 z-0 bg-cover bg-center"
+          className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat bg-fixed"
           style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop")' }}
         ></div>
         
         {/* Dark Gradient Overlay */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-900 via-slate-900/70 to-slate-900/30"></div>
+        <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40"></div>
 
         {/* Hero Content */}
-        <div className="relative z-20 max-w-3xl animate-fade-in-up">
-          <span className="inline-block py-1.5 px-4 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-bold tracking-wider uppercase mb-6 backdrop-blur-sm">
+        <div className="relative z-20 max-w-4xl animate-fade-in-up px-4">
+          <span className="inline-block py-1.5 px-4 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs md:text-sm font-bold tracking-wider uppercase mb-6 backdrop-blur-md">
             New Season Arrival
           </span>
-          <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight mb-6">
             Redefine your <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-200 to-blue-500">
               digital style.
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-slate-300 mb-8 max-w-2xl mx-auto font-light">
-            Premium dark aesthetics for the modern minimalist. curated for those who dare to stand out.
+          <p className="text-base sm:text-lg md:text-xl text-slate-300 mb-8 max-w-2xl mx-auto font-light leading-relaxed">
+            Premium dark aesthetics for the modern minimalist. Curated fashion for those who dare to stand out in a crowded world.
           </p>
-          <button 
-            onClick={() => document.getElementById('shop').scrollIntoView({ behavior: 'smooth' })}
-            className="group relative inline-flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_30px_rgba(37,99,235,0.7)] hover:-translate-y-1"
-          >
-            Explore Collection 
-            <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button 
+              onClick={() => document.getElementById('shop').scrollIntoView({ behavior: 'smooth' })}
+              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_30px_rgba(37,99,235,0.7)] hover:-translate-y-1"
+            >
+              Explore Collection 
+              <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button className="px-8 py-4 bg-transparent border border-white/20 hover:bg-white/10 text-white rounded-full font-semibold transition-all backdrop-blur-sm">
+              View Lookbook
+            </button>
+          </div>
         </div>
       </section>
 
       {/* --- FLOATING TRUST BAR --- */}
-      <section className="relative z-30 px-4 -mt-20 mb-20">
-        <div className="max-w-6xl mx-auto bg-slate-800/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6 md:p-8 flex flex-wrap justify-center md:justify-between gap-6 md:gap-0">
-          {[
-            { icon: FaTruck, text: "Free Shipping" },
-            { icon: FaShieldAlt, text: "Secure Payment" },
-            { icon: FaUndo, text: "30-Day Returns" },
-            { icon: FaStar, text: "4.9/5 Ratings" },
-          ].map((item, index) => (
-            <div key={index} className="flex items-center gap-3 text-slate-200 font-medium">
-              <item.icon className="text-blue-500 text-xl md:text-2xl" />
-              <span>{item.text}</span>
-            </div>
-          ))}
+      <section className="relative z-30 px-4 -mt-16 md:-mt-24 mb-16 md:mb-24">
+        <div className="max-w-6xl mx-auto bg-slate-800/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-white/10">
+            {[
+              { icon: FaTruck, title: "Free Shipping", desc: "On orders over ₹999" },
+              { icon: FaShieldAlt, title: "Secure Payment", desc: "100% protected" },
+              { icon: FaUndo, title: "Easy Returns", desc: "30-day money back" },
+              { icon: FaStar, title: "Top Rated", desc: "4.9/5 from users" },
+            ].map((item, index) => (
+              <div key={index} className="flex flex-col items-center text-center p-2 md:px-4">
+                <item.icon className="text-blue-500 text-2xl md:text-3xl mb-3" />
+                <h4 className="text-white font-bold text-sm md:text-base">{item.title}</h4>
+                <p className="text-slate-400 text-xs md:text-sm">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- NEW SECTION: FEATURED DROP --- */}
+      <section className="max-w-7xl mx-auto px-4 mb-24">
+        <div className="grid md:grid-cols-2 gap-12 items-center bg-slate-800/30 rounded-3xl p-6 md:p-12 border border-slate-700/50">
+           <div className="order-2 md:order-1 relative rounded-2xl overflow-hidden h-[400px] md:h-[500px]">
+              <img 
+                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=2000&auto=format&fit=crop" 
+                alt="Featured" 
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute top-4 left-4 bg-white text-black font-bold px-3 py-1 rounded text-xs uppercase tracking-widest">
+                Limited Edition
+              </div>
+           </div>
+           <div className="order-1 md:order-2 text-left">
+              <h4 className="text-blue-400 font-bold uppercase tracking-widest mb-2">This Week's Drop</h4>
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">The Urban <br/>Traveler Set</h2>
+              <p className="text-slate-400 text-lg mb-8 leading-relaxed">
+                Designed for the digital nomad. Water-resistant fabrics meeting ergonomic design. 
+                Perfect for your daily commute or your next big adventure.
+              </p>
+              <div className="flex gap-4 items-center mb-8">
+                 <div className="text-3xl font-bold text-white">₹2,499</div>
+                 <div className="text-lg text-slate-500 line-through">₹4,999</div>
+              </div>
+              <button 
+                className="px-8 py-3 bg-white text-slate-900 hover:bg-slate-200 rounded-full font-bold transition-colors"
+                onClick={() => navigate('/shop')}
+              >
+                Shop the Drop
+              </button>
+           </div>
         </div>
       </section>
 
       {/* --- CATEGORY FILTER --- */}
-      <section id="shop" className="px-4 py-12 text-center">
-        <div className="inline-flex flex-wrap justify-center gap-2 bg-slate-800 p-2 rounded-full border border-slate-700">
+      <section id="shop" className="px-4 mb-12 text-center">
+        <h2 className="text-2xl md:text-3xl font-bold mb-8">Shop by Category</h2>
+        <div className="inline-flex flex-wrap justify-center gap-2 bg-slate-800 p-2 rounded-2xl md:rounded-full border border-slate-700">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-6 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
+              className={`px-6 py-2.5 rounded-xl md:rounded-full text-sm font-semibold transition-all duration-300 w-full sm:w-auto ${
                 selectedCategory === cat
-                  ? "bg-blue-600 text-white shadow-lg"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/50"
                   : "text-slate-400 hover:text-white hover:bg-slate-700"
               }`}
             >
@@ -135,15 +180,15 @@ const Home = () => {
       </section>
 
       {/* --- PRODUCT GRID --- */}
-      <section className="max-w-7xl mx-auto px-4 pb-20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <section className="max-w-7xl mx-auto px-4 pb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {filteredProducts.map((p) => (
             <div 
               key={p.product_id} 
-              className="group bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2"
+              className="group bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2 flex flex-col"
             >
               {/* Image Container */}
-              <div className="relative h-72 overflow-hidden bg-slate-700">
+              <div className="relative h-64 sm:h-72 overflow-hidden bg-slate-700">
                 <img 
                   src={p.image_url} 
                   alt={p.product_name} 
@@ -162,21 +207,21 @@ const Home = () => {
               </div>
 
               {/* Card Info */}
-              <div className="p-5">
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+              <div className="p-5 flex flex-col flex-grow">
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">
                   {p.product_department}
                 </span>
-                <h3 className="text-lg font-semibold text-white mt-1 mb-2 truncate group-hover:text-blue-400 transition-colors">
+                <h3 className="text-lg font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors">
                   {p.product_name}
                 </h3>
                 
-                <div className="flex justify-between items-center mt-4 border-t border-slate-700 pt-4">
+                <div className="mt-auto flex justify-between items-center border-t border-slate-700 pt-4">
                   <span className="text-xl font-bold text-slate-100">
                     ₹{p.selling_unit_price.toFixed(2)}
                   </span>
                   <button 
                     onClick={() => handleAddToCart(p)}
-                    className="w-10 h-10 rounded-full border border-slate-600 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-all duration-300"
+                    className="w-10 h-10 rounded-full border border-slate-600 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-all duration-300 active:scale-90"
                   >
                     <FaShoppingCart size={14} />
                   </button>
@@ -188,25 +233,50 @@ const Home = () => {
       </section>
 
       {/* --- PROMO BANNER --- */}
-      <section className="max-w-5xl mx-auto px-4 mb-20">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 p-10 md:p-16 text-center shadow-2xl">
+      <section className="max-w-5xl mx-auto px-4 mb-24">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 border border-slate-700 p-8 md:p-16 text-center shadow-2xl">
           {/* Decorative Glow */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-3xl rounded-full pointer-events-none"></div>
           
           <div className="relative z-10">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-400">
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200">
               Flat 20% OFF
             </h2>
-            <p className="text-slate-300 text-lg mb-8">
-              Use code <strong className="text-white bg-slate-700 px-2 py-1 rounded">GSH20</strong> at checkout for exclusive savings.
+            <p className="text-slate-300 text-base md:text-lg mb-8 max-w-xl mx-auto">
+              Upgrade your wardrobe today. Use code <strong className="text-white bg-slate-700/50 border border-slate-600 px-2 py-1 rounded mx-1">GSH20</strong> at checkout for exclusive savings on all accessories.
             </p>
-            <button className="px-8 py-3 rounded-full border-2 border-blue-500 text-blue-400 font-bold hover:bg-blue-600 hover:text-white transition-all duration-300">
-              Copy Code
+            <button className="px-8 py-3 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
+              Claim Offer
             </button>
           </div>
         </div>
       </section>
 
+      {/* --- NEW SECTION: TESTIMONIALS --- */}
+      <section className="max-w-7xl mx-auto px-4 mb-24">
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">What They Say</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+           {[1, 2, 3].map((i) => (
+             <div key={i} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 relative">
+                <FaQuoteLeft className="text-blue-500/20 text-4xl absolute top-6 left-6" />
+                <p className="text-slate-300 relative z-10 mb-6 mt-4">
+                  "Absolutely love the quality. The dark aesthetic fits perfectly with my setup. Shipping was incredibly fast too!"
+                </p>
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-slate-600 rounded-full overflow-hidden">
+                      <img src={`https://i.pravatar.cc/150?img=${i + 10}`} alt="User" />
+                   </div>
+                   <div>
+                      <h5 className="font-bold text-white text-sm">Alex Johnson</h5>
+                      <div className="flex text-yellow-500 text-xs">
+                         <FaStar /><FaStar /><FaStar /><FaStar /><FaStar />
+                      </div>
+                   </div>
+                </div>
+             </div>
+           ))}
+        </div>
+      </section>
       {/* --- BRANDS --- */}
       <section className="py-10 border-t border-slate-800">
         <p className="text-center text-slate-500 text-sm tracking-[0.2em] font-bold mb-8 uppercase">Trusted By</p>

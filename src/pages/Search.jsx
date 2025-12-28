@@ -133,5 +133,5 @@ const Search = () => {
     </main>
   );
 };
-
+7
 export default Search;

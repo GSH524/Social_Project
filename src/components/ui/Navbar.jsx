@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from '../../firebase'; 
-import { FaUser, FaSearch, FaShoppingCart, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { FaUser, FaSearch, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
 
 const Navbar = () => {
   const [isAuth, setIsAuth] = useState(false);
@@ -155,7 +155,6 @@ const Navbar = () => {
               </div>
             ) : (
               // --- NOT LOGGED IN STATE (User Icon) ---
-              // ✅ REPLACED "Login | Register" text with Icon
               <button 
                 onClick={() => navigate("/login")} 
                 className="hidden md:block text-slate-300 hover:text-white transition-colors"
@@ -197,19 +196,19 @@ const Navbar = () => {
             <div className="border-t border-slate-700 pt-4">
               {isAuth ? (
                 <div className="flex items-center gap-3 px-3">
-                  <div className="h-10 w-10 rounded-full bg-slate-600 overflow-hidden">
-                    {profileImage ? <img src={profileImage} alt="profile" className="w-full h-full object-cover"/> : <FaUser className="m-3 text-white"/>}
+                  <div className="h-10 w-10 rounded-full bg-slate-600 overflow-hidden flex items-center justify-center">
+                    {profileImage ? <img src={profileImage} alt="profile" className="w-full h-full object-cover"/> : <FaUser className="text-white"/>}
                   </div>
-                  <div>
-                    <div className="text-base font-medium text-white">{currentUser?.displayName || "User"}</div>
-                    <Link to="/userdashboard" className="text-sm text-slate-400 hover:text-blue-400">View Dashboard</Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base font-medium text-white truncate">{currentUser?.email}</div>
+                    <Link to={currentUser?.email === "harigudipati666@gmail.com" ? "/admindashboard" : "/userdashboard"} className="text-sm text-blue-400 hover:text-blue-300 block">View Dashboard</Link>
                   </div>
-                  <button onClick={handleLogout} className="ml-auto text-red-400 text-sm">Logout</button>
+                  <button onClick={handleLogout} className="text-red-400 text-sm hover:text-red-300">Logout</button>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4 px-3">
-                   <Link to="/login" className="text-center py-2 bg-slate-700 text-white rounded hover:bg-slate-600">Login</Link>
-                   <Link to="/signup" className="text-center py-2 bg-blue-600 text-white rounded hover:bg-blue-500">Sign Up</Link>
+                   <Link to="/login" className="text-center py-2 bg-slate-700 text-white rounded hover:bg-slate-600 font-medium">Login</Link>
+                   <Link to="/signup" className="text-center py-2 bg-blue-600 text-white rounded hover:bg-blue-500 font-medium">Sign Up</Link>
                 </div>
               )}
             </div>

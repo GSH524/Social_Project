@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, Calendar, User, Filter } from 'lucide-react';
+import { Search, ChevronDown, Calendar, User, Filter, Loader2 } from 'lucide-react';
 import { db } from "../firebase";
 import { doc, updateDoc } from "firebase/firestore";
 
 const AdminOrders = ({ initialOrders, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [isUpdating, setIsUpdating] = useState(null); // Track which order is updating
 
   const filteredOrders = (initialOrders || []).filter(order => {
     const sTerm = searchTerm.toLowerCase();
@@ -15,45 +16,138 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
   });
 
   const handleStatusChange = async (id, newStatus) => {
+    setIsUpdating(id);
     try {
       await updateDoc(doc(db, "orders", String(id)), { order_status: newStatus });
-      if (onUpdate) onUpdate();
-    } catch (e) { alert("Failed to update status."); }
+      if (onUpdate) await onUpdate();
+    } catch (e) { 
+      alert("Failed to update status."); 
+    } finally {
+      setIsUpdating(null);
+    }
   };
 
   const getStatusColor = (s) => {
-    if(s==='Delivered') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    if(s==='Pending') return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    if(s==='Cancelled') return 'bg-red-500/10 text-red-400 border-red-500/20';
-    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    switch(s) {
+      case 'Delivered': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'Pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'Cancelled': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'Shipped': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between gap-4">
-        <h2 className="text-2xl font-bold text-white">Order Management</h2>
-        <div className="flex gap-3">
-          <div className="relative"><Search className="absolute left-3 top-2.5 text-slate-500" size={16}/><input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search Order ID..." className="bg-slate-900 border border-slate-700 text-slate-200 pl-10 pr-4 py-2 rounded-lg w-full sm:w-64 outline-none"/></div>
-          <div className="relative"><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="bg-slate-900 border border-slate-700 text-slate-200 pl-4 pr-10 py-2 rounded-lg outline-none cursor-pointer appearance-none"><option>All</option><option>Pending</option><option>Shipped</option><option>Delivered</option><option>Cancelled</option></select><Filter size={16} className="absolute right-3 top-2.5 text-slate-500 pointer-events-none"/></div>
+    <div className="space-y-6 animate-fade-in px-2 sm:px-0">
+      
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-2xl font-bold text-white tracking-tight">Order Management</h2>
+        
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          {/* Search Box */}
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16}/>
+            <input 
+              value={searchTerm} 
+              onChange={e=>setSearchTerm(e.target.value)} 
+              placeholder="Search Order ID..." 
+              className="bg-slate-900 border border-slate-700 text-slate-200 pl-10 pr-4 py-2.5 rounded-xl w-full sm:w-64 outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500 transition-all"
+            />
+          </div>
+
+          {/* Filter Dropdown */}
+          <div className="relative">
+            <select 
+              value={statusFilter} 
+              onChange={e=>setStatusFilter(e.target.value)} 
+              className="bg-slate-900 border border-slate-700 text-slate-200 pl-4 pr-10 py-2.5 rounded-xl outline-none cursor-pointer appearance-none w-full sm:w-auto focus:ring-2 focus:ring-violet-500/50"
+            >
+              <option value="All">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Shipped">Shipped</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <Filter size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
+          </div>
         </div>
       </div>
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+
+      {/* Orders Table Container */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[700px]">
             <thead>
-              <tr className="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800"><th className="p-4">ID</th><th className="p-4">Date</th><th className="p-4">Customer</th><th className="p-4">Status</th><th className="p-4 text-right">Total</th><th className="p-4 text-center">Action</th></tr>
+              <tr className="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-widest border-b border-slate-800">
+                <th className="p-5 font-semibold">ID</th>
+                <th className="p-5 font-semibold">Date</th>
+                <th className="p-5 font-semibold">Customer</th>
+                <th className="p-5 font-semibold">Status</th>
+                <th className="p-5 font-semibold text-right">Total</th>
+                <th className="p-5 font-semibold text-center">Action</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
-              {filteredOrders.slice(0, 20).map(o => (
-                <tr key={o.order_id} className="hover:bg-slate-800/50 transition-colors">
-                  <td className="p-4 text-violet-400 font-bold">#{o.order_id}</td>
-                  <td className="p-4"><div className="text-white text-sm flex items-center gap-2"><Calendar size={14}/> {o.order_date}</div></td>
-                  <td className="p-4 text-slate-300 text-sm"><User size={14} className="inline mr-1"/> {o.customer_id}</td>
-                  <td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold border ${getStatusColor(o.order_status)}`}>{o.order_status}</span></td>
-                  <td className="p-4 text-right font-bold text-white">${Number(o.order_total_amount).toFixed(2)}</td>
-                  <td className="p-4 text-center"><div className="relative inline-block w-32"><select value={o.order_status} onChange={(e) => handleStatusChange(o.order_id, e.target.value)} className="w-full appearance-none bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 outline-none cursor-pointer"><option>Pending</option><option>Shipped</option><option>Delivered</option><option>Cancelled</option></select><ChevronDown size={12} className="absolute right-2 top-2.5 text-slate-500 pointer-events-none"/></div></td>
+            <tbody className="divide-y divide-slate-800/50">
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map(o => (
+                  <tr key={o.order_id} className="hover:bg-slate-800/30 transition-all group">
+                    <td className="p-5">
+                      <span className="text-violet-400 font-mono font-bold">#{o.order_id}</span>
+                    </td>
+                    <td className="p-5">
+                      <div className="text-slate-300 text-sm flex items-center gap-2">
+                        <Calendar size={14} className="text-slate-500"/> {o.order_date}
+                      </div>
+                    </td>
+                    <td className="p-5">
+                      <div className="text-slate-300 text-sm flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+                          <User size={14} className="text-slate-500"/>
+                        </div>
+                        <span className="truncate max-w-[120px]">{o.customer_id}</span>
+                      </div>
+                    </td>
+                    <td className="p-5">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border tracking-wide uppercase ${getStatusColor(o.order_status)}`}>
+                        {o.order_status}
+                      </span>
+                    </td>
+                    <td className="p-5 text-right font-bold text-white font-mono">
+                      ${Number(o.order_total_amount).toFixed(2)}
+                    </td>
+                    <td className="p-5 text-center">
+                      <div className="relative inline-block w-32 group/select">
+                        {isUpdating === o.order_id ? (
+                          <div className="flex items-center justify-center py-1.5 bg-slate-800 rounded-lg">
+                            <Loader2 size={16} className="text-violet-500 animate-spin" />
+                          </div>
+                        ) : (
+                          <>
+                            <select 
+                              value={o.order_status} 
+                              onChange={(e) => handleStatusChange(o.order_id, e.target.value)} 
+                              className="w-full appearance-none bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-violet-500 transition-colors"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Delivered">Delivered</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover/select:text-violet-400 transition-colors"/>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="p-10 text-center text-slate-500 italic">
+                    No orders found matching your criteria.
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

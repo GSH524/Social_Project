@@ -7,8 +7,8 @@ import {
   browserLocalPersistence,
   browserSessionPersistence
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore"; // ✅ Added Firestore imports
-import { auth, db } from "../firebase"; // ✅ Added db import
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaLock, FaEnvelope, FaCheckCircle } from "react-icons/fa";
 
@@ -24,7 +24,6 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  // Check Local Storage
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
     if (savedEmail) {
@@ -33,7 +32,6 @@ const Login = () => {
     }
   }, []);
 
-  // --- Email & Password Login ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -62,7 +60,6 @@ const Login = () => {
     }
   };
 
-  // --- Google Login (Updated) ---
   const handleGoogleLogin = async () => {
     setError("");
     try {
@@ -71,20 +68,17 @@ const Login = () => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      // ✅ 1. SYNC GOOGLE USER TO FIRESTORE
-      // This ensures the user exists in your DB so the Dashboard works
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        // If new user, create document
         await setDoc(userRef, {
           fullName: user.displayName,
           firstName: user.displayName ? user.displayName.split(' ')[0] : "User",
           lastName: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : "",
           email: user.email,
           profileImage: user.photoURL,
-          mobile: "", // Google doesn't provide phone by default
+          mobile: "", 
           address: "",
           city: "",
           country: "",
@@ -93,10 +87,8 @@ const Login = () => {
         });
       }
 
-      // ✅ 2. Show Success
       setShowToast(true);
 
-      // ✅ 3. Navigate
       setTimeout(() => {
         if (user.email === "harigudipati666@gmail.com") {
           navigate("/admindashboard");
@@ -106,10 +98,7 @@ const Login = () => {
       }, 1500);
 
     } catch (err) {
-      // Ignore if user simply closed the popup
-      if (err.code === 'auth/popup-closed-by-user') {
-        return; 
-      }
+      if (err.code === 'auth/popup-closed-by-user') return; 
       setError("Google login failed. Please try again.");
       console.error(err);
     }
@@ -125,10 +114,10 @@ const Login = () => {
 
   return (
     <div 
-      className="min-h-screen w-full flex items-center justify-center p-5 font-sans"
+      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden"
       style={bgStyle}
     >
-      {/* Toast Popup */}
+      {/* Toast Notification */}
       {showToast && (
         <div className="fixed top-5 right-5 z-50 flex items-center gap-3 bg-emerald-500/90 text-white px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border border-emerald-400/50 animate-bounce">
           <FaCheckCircle className="text-xl" />
@@ -140,27 +129,31 @@ const Login = () => {
       )}
 
       {/* Login Card */}
-      <div className="w-full max-w-sm bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-[25px] border border-white/10 rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-10 relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">
+      <div className="w-full max-w-[320px] sm:max-w-sm md:max-w-md bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-[25px] border border-white/10 rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 sm:p-8 md:p-10 relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">
         
+        {/* Background Glow Effect */}
         <div className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_60%)] pointer-events-none" />
 
-        <div className="text-center mb-10 relative z-10">
-          <FaUserCircle className="text-[80px] text-white/30 mx-auto drop-shadow-md" />
+        {/* User Icon */}
+        <div className="text-center mb-8 sm:mb-10 relative z-10">
+          <FaUserCircle className="text-[60px] sm:text-[80px] text-white/30 mx-auto drop-shadow-md transition-transform duration-500 hover:scale-105" />
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-sm p-3 mb-5 text-center relative z-10">
+          <div className="bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-xs sm:text-sm p-3 mb-5 text-center relative z-10">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="relative z-10">
           
-          <div className="relative mb-8 flex items-center border-b border-white/40 transition-colors duration-300 focus-within:border-white">
-            <span className="text-white text-lg mr-4 pb-2"><FaEnvelope /></span>
+          {/* Email Input */}
+          <div className="relative mb-6 sm:mb-8 flex items-center border-b border-white/40 transition-colors duration-300 focus-within:border-white">
+            <span className="text-white text-lg mr-3 sm:mr-4 pb-2"><FaEnvelope /></span>
             <input
               type="email"
-              className="w-full bg-transparent border-none outline-none text-white pb-2 text-base placeholder-white/70 font-light"
+              className="w-full bg-transparent border-none outline-none text-white pb-2 text-sm sm:text-base placeholder-white/70 font-light"
               placeholder="Email ID"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -168,11 +161,12 @@ const Login = () => {
             />
           </div>
 
-          <div className="relative mb-8 flex items-center border-b border-white/40 transition-colors duration-300 focus-within:border-white">
-            <span className="text-white text-lg mr-4 pb-2"><FaLock /></span>
+          {/* Password Input */}
+          <div className="relative mb-6 sm:mb-8 flex items-center border-b border-white/40 transition-colors duration-300 focus-within:border-white">
+            <span className="text-white text-lg mr-3 sm:mr-4 pb-2"><FaLock /></span>
             <input
               type={showPassword ? "text" : "password"}
-              className="w-full bg-transparent border-none outline-none text-white pb-2 text-base placeholder-white/70 font-light"
+              className="w-full bg-transparent border-none outline-none text-white pb-2 text-sm sm:text-base placeholder-white/70 font-light"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -186,7 +180,8 @@ const Login = () => {
             </span>
           </div>
 
-          <div className="flex justify-between items-center mb-8 text-sm relative z-10">
+          {/* Remember Me & Forgot Password */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 text-xs sm:text-sm gap-3 sm:gap-0 relative z-10">
             <div className="flex items-center group">
               <input 
                 className="appearance-none w-4 h-4 border border-white/50 rounded bg-transparent checked:bg-white checked:border-white cursor-pointer mr-2 relative after:content-['✓'] after:absolute after:text-black after:text-xs after:left-[2px] after:top-[-1px] after:hidden checked:after:block transition-all"
@@ -201,34 +196,37 @@ const Login = () => {
             </div>
             <button
               type="button"
-              className="text-white/50 hover:text-white text-sm font-light italic transition-colors"
+              className="text-white/50 hover:text-white font-light italic transition-colors ml-auto sm:ml-0"
               onClick={() => navigate("/reset")}
             >
               Forgot Password?
             </button>
           </div>
 
+          {/* Login Button */}
           <button 
             type="submit" 
-            className="w-full bg-gradient-to-r from-[#4b1d58] to-[#3a3a8a] text-white py-3 rounded-full font-semibold tracking-[1.5px] uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:from-[#5e246e] hover:to-[#4a4ab5] mb-4"
+            className="w-full bg-gradient-to-r from-[#4b1d58] to-[#3a3a8a] text-white py-3 rounded-full font-semibold tracking-[1.5px] uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:from-[#5e246e] hover:to-[#4a4ab5] mb-4 text-sm sm:text-base"
           >
             LOGIN
           </button>
         </form>
 
+        {/* Social Login */}
         <div className="text-center mt-4 relative z-10">
-            <p className="text-white/50 mb-4 text-sm">Or login with</p>
+            <p className="text-white/50 mb-4 text-xs sm:text-sm">Or login with</p>
             <button
               type="button"
-              className="w-12 h-12 rounded-full border border-white/30 text-white flex items-center justify-center mx-auto hover:bg-white/10 hover:border-white transition-all duration-300 group"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-white/30 text-white flex items-center justify-center mx-auto hover:bg-white/10 hover:border-white transition-all duration-300 group"
               onClick={handleGoogleLogin}
               title="Sign in with Google"
             >
-              <FaGoogle className="group-hover:scale-110 transition-transform" />
+              <FaGoogle className="text-sm sm:text-base group-hover:scale-110 transition-transform" />
             </button>
         </div>
 
-        <p className="text-center mt-6 mb-0 text-white/50 text-sm relative z-10">
+        {/* Sign Up Link */}
+        <p className="text-center mt-6 mb-0 text-white/50 text-xs sm:text-sm relative z-10">
           Don't have an account? <Link to="/signup" className="text-white font-bold ml-1 hover:underline">Sign up</Link>
         </p>
       </div>
