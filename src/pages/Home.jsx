@@ -103,7 +103,7 @@ const Home = () => {
       </section>
 
       {/* --- FLOATING TRUST BAR --- */}
-      <section className="relative z-30 px-4 -mt-16 md:-mt-24 mb-16 md:mb-24">
+      <section className="relative z-30 px-4 -mt-16 md:-mt-24 mb-16 md:mb-24 lg:mb-12">
         <div className="max-w-6xl mx-auto bg-slate-800/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-white/10">
             {[
