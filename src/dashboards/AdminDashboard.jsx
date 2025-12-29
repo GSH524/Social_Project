@@ -113,7 +113,7 @@ const AdminDashboard = () => {
 
   // --- UI RENDER ---
   return (
-    <div className="flex flex-col h-screen w-full font-sans text-slate-200 overflow-hidden bg-[#0f172a] selection:bg-violet-500/30">
+    <div className="sticky flex flex-col h-screen w-full font-sans text-slate-200 overflow-hidden bg-[#0f172a] selection:bg-violet-500/30">
       
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px]"/>
