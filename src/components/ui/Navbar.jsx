@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react"; // 1. Added useRef
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -14,9 +14,40 @@ const Navbar = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // 2. Create refs for the dropdown menu and the toggle button
+  const dropdownRef = useRef(null);
+  const userIconRef = useRef(null);
+
   const navigate = useNavigate();
-  const location = useLocation(); // We will use this to check active path
+  const location = useLocation();
   const totalQuantity = useSelector(state => state.cart.totalQuantity);
+
+  // --- 3. Click Outside Logic ---
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // If dropdown is open...
+      if (showDropdown) {
+        // ...and the click target is NOT inside the dropdown
+        // ...and the click target is NOT the icon itself (to prevent conflict with the toggle button)
+        if (
+          dropdownRef.current && 
+          !dropdownRef.current.contains(event.target) &&
+          userIconRef.current &&
+          !userIconRef.current.contains(event.target)
+        ) {
+          setShowDropdown(false);
+        }
+      }
+    };
+
+    // Bind the event listener
+    document.addEventListener("mousedown", handleClickOutside);
+    
+    // Unbind the event listener on cleanup
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDropdown]);
 
   // --- Auth & Data Logic ---
   useEffect(() => {
@@ -54,18 +85,16 @@ const Navbar = () => {
     if (searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
-  // Helper to determine Desktop Active Class
   const getDesktopClass = (path) => {
     return location.pathname === path 
-      ? "text-blue-500 font-bold transition-colors" // Active Style
-      : "text-slate-300 hover:text-white transition-colors"; // Inactive Style
+      ? "text-blue-500 font-bold transition-colors" 
+      : "text-slate-300 hover:text-white transition-colors";
   };
 
-  // Helper to determine Mobile Active Class
   const getMobileClass = (path) => {
     return location.pathname === path 
-      ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" // Active Style
-      : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700"; // Inactive Style
+      ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" 
+      : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
   };
 
   return (
@@ -85,7 +114,7 @@ const Navbar = () => {
             </div>
           </Link>
 
-          {/* 2. CENTER SEARCH BAR (Hidden on Mobile) */}
+          {/* 2. CENTER SEARCH BAR */}
           <div className="hidden md:flex flex-1 max-w-lg mx-auto">
             <form onSubmit={handleSearch} className="w-full relative flex items-center">
               <input
@@ -104,7 +133,7 @@ const Navbar = () => {
             </form>
           </div>
 
-          {/* 3. NAVIGATION LINKS (Desktop) */}
+          {/* 3. NAVIGATION LINKS */}
           <div className="hidden lg:flex items-center space-x-8 text-sm font-medium">
             <Link to="/" className={getDesktopClass("/")}>Home</Link>
             <Link to="/about" className={getDesktopClass("/about")}>About</Link>
@@ -114,12 +143,10 @@ const Navbar = () => {
           {/* 4. ICONS & ACTIONS */}
           <div className="flex items-center gap-5">
             
-            {/* Mobile Search Toggle */}
             <button className="md:hidden text-slate-300 hover:text-white" onClick={() => setIsOpen(!isOpen)}>
               <FaSearch size={20} />
             </button>
 
-            {/* Cart Icon */}
             <Link to="/cart" className="relative group text-slate-300 hover:text-white transition-colors">
               <FaShoppingCart size={22} />
               {totalQuantity > 0 && (
@@ -131,9 +158,10 @@ const Navbar = () => {
 
             {/* User Profile Logic */}
             {isAuth ? (
-              // --- LOGGED IN STATE (Profile Picture) ---
+              // --- LOGGED IN STATE ---
               <div className="relative hidden md:block">
                 <button 
+                  ref={userIconRef} // 4a. Attach ref to the icon button
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="flex items-center gap-2 focus:outline-none"
                 >
@@ -150,7 +178,10 @@ const Navbar = () => {
 
                 {/* Dropdown */}
                 {showDropdown && (
-                  <div className="absolute right-0 mt-3 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm animate-fade-in-up">
+                  <div 
+                    ref={dropdownRef} // 4b. Attach ref to the dropdown container
+                    className="absolute right-0 mt-3 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm animate-fade-in-up"
+                  >
                     <div className="px-4 py-2 border-b border-slate-700">
                        <p className="text-slate-400 text-xs">Signed in as</p>
                        <p className="text-white font-medium truncate">{currentUser?.email}</p>
@@ -168,7 +199,7 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
-              // --- NOT LOGGED IN STATE (User Icon) ---
+              // --- NOT LOGGED IN STATE ---
               <button 
                 onClick={() => navigate("/login")} 
                 className="hidden md:block text-slate-300 hover:text-white transition-colors"

@@ -1,18 +1,15 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
 
 const userSlice = createSlice({
-  name: 'user',
+  name: 'users',
   initialState: {
     profile: {
-      fullname: '',
+      firstname: '',
+      lastname:'',
       email: '',
       mobile: '',
       address: '',
       uid: '',
-      // Note: We usually don't store passwords in Redux for security, 
-      // but we keep the structure consistent if you need it.
     },
   },
   reducers: {
@@ -20,8 +17,8 @@ const userSlice = createSlice({
       state.profile = action.payload;
     },
     logout: (state) => {
-      signOut(auth);
-      state.profile = { fullname: '', email: '', mobile: '', address: '', uid: '' };
+      // Just clear the data here. Call signOut() in the component instead.
+      state.profile = { firstname: '', lastname:'', email: '', mobile: '', address: '', uid: '' };
     },
   },
 });

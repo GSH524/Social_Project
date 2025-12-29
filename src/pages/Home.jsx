@@ -12,7 +12,6 @@ import {
   FaStar,
   FaArrowRight,
   FaQuoteLeft,
-  FaEnvelope
 } from "react-icons/fa";
 import { products } from "../data/dataUtils";
 
@@ -22,6 +21,20 @@ const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const categories = ["All", "Men", "Women", "Accessories"];
+
+  // --- HELPER: Get Image or Fallback ---
+  const getProductImage = (product) => {
+    if (product.image_url) return product.image_url;
+    
+    if (product.product_category === "Accessories") {
+        return "https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?q=80&w=2070&auto=format&fit=crop";
+    } else if (product.product_department === "Men") {
+        return "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=2148&auto=format&fit=crop";
+    } else if (product.product_department === "Women") {
+        return "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?q=80&w=2135&auto=format&fit=crop";
+    }
+    return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop";
+  };
 
   // Filtering Logic
   const filteredProducts =
@@ -35,26 +48,28 @@ const Home = () => {
           )
           .slice(0, 8);
 
+  // --- UPDATED HANDLER: Matches cartSlice structure ---
   const handleAddToCart = (product) => {
     dispatch(
       addItem({
-        id: product.product_id,
-        name: product.product_name,
-        price: product.selling_unit_price,
-        image: product.image_url,
+        product_id: product.product_id,       // Correct Key
+        product_name: product.product_name,   // Correct Key
+        selling_unit_price: product.selling_unit_price, // Correct Key
+        image_url: getProductImage(product),  // Correct Key
         quantity: 1,
       })
     );
     toast.success("Added to cart");
   };
 
+  // --- UPDATED HANDLER: Matches cartSlice structure ---
   const handleBuyNow = (product) => {
     dispatch(
       addItem({
-        id: product.product_id,
-        name: product.product_name,
-        price: product.selling_unit_price,
-        image: product.image_url,
+        product_id: product.product_id,
+        product_name: product.product_name,
+        selling_unit_price: product.selling_unit_price,
+        image_url: getProductImage(product),
         quantity: 1,
       })
     );
@@ -153,9 +168,10 @@ const Home = () => {
               {/* Image Container */}
               <div className="relative h-64 sm:h-72 overflow-hidden bg-slate-700">
                 <img 
-                  src={p.image_url} 
+                  src={getProductImage(p)} 
                   alt={p.product_name} 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"; }}
                 />
                 
                 {/* Overlay Buy Button */}
@@ -215,7 +231,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- NEW SECTION: TESTIMONIALS --- */}
+      {/* --- TESTIMONIALS --- */}
       <section className="max-w-7xl mx-auto px-4 mb-24">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">What They Say</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -240,6 +256,7 @@ const Home = () => {
            ))}
         </div>
       </section>
+      
       {/* --- BRANDS --- */}
       <section className="py-10 border-t border-slate-800">
         <p className="text-center text-slate-500 text-sm tracking-[0.2em] font-bold mb-8 uppercase">Trusted By</p>

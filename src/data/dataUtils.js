@@ -9,4 +9,4 @@ export const customers = customersRaw;
 export const orders = ordersRaw;
 export const orderItems = orderItemsRaw;
 export const orderReturns = orderReturnsRaw;
-export const products = productsRaw;
+export const products = productsRaw.slice(0,1000);
