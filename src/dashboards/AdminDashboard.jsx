@@ -121,7 +121,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* --- NAVBAR --- */}
-      <nav className="sticky h-20 bg-black/20 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 lg:px-10 z-50 shrink-0 relative">
+      <nav className="sticky h-20 bg-black/20 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 lg:px-10  shrink-0 relative">
         
         {/* Left: Logo & Mobile Toggle */}
         <div className="flex items-center gap-4">
