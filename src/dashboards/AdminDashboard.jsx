@@ -113,7 +113,7 @@ const AdminDashboard = () => {
 
   // --- UI RENDER ---
   return (
-    <div className="sticky flex flex-col h-screen w-full font-sans text-slate-200 overflow-hidden bg-[#0f172a] selection:bg-violet-500/30">
+    <div className="flex flex-col h-screen w-full font-sans text-slate-200 overflow-hidden bg-[#0f172a] selection:bg-violet-500/30">
       
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px]"/>
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* --- NAVBAR --- */}
-      <nav className="h-20 bg-black/20 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 lg:px-10 z-50 shrink-0 relative">
+      <nav className="sticky h-20 bg-black/20 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 lg:px-10 z-50 shrink-0 relative">
         
         {/* Left: Logo & Mobile Toggle */}
         <div className="flex items-center gap-4">
