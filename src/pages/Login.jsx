@@ -184,7 +184,7 @@ const Login = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 text-xs sm:text-sm gap-3 sm:gap-0 relative z-10">
             <div className="flex items-center group">
               <input 
-                className="appearance-none w-4 h-4 border border-white/50 rounded bg-transparent checked:bg-white checked:border-white cursor-pointer mr-2 relative after:content-['✓'] after:absolute after:text-black after:text-xs after:left-[2px] after:top-[-1px] after:hidden checked:after:block transition-all"
+                className="appearance-none w-4 h-4 border border-white/50 rounded bg-white checked:bg-white checked:border-white cursor-pointer mr-2 relative after:content-['✓'] after:absolute after:text-black after:text-xs after:left-[2px] after:top-[-1px] after:hidden checked:after:block transition-all"
                 type="checkbox" 
                 id="rememberMe"
                 checked={rememberMe}

@@ -15,7 +15,7 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useLocation(); // We will use this to check active path
   const totalQuantity = useSelector(state => state.cart.totalQuantity);
 
   // --- Auth & Data Logic ---
@@ -52,6 +52,20 @@ const Navbar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+  };
+
+  // Helper to determine Desktop Active Class
+  const getDesktopClass = (path) => {
+    return location.pathname === path 
+      ? "text-blue-500 font-bold transition-colors" // Active Style
+      : "text-slate-300 hover:text-white transition-colors"; // Inactive Style
+  };
+
+  // Helper to determine Mobile Active Class
+  const getMobileClass = (path) => {
+    return location.pathname === path 
+      ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" // Active Style
+      : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700"; // Inactive Style
   };
 
   return (
@@ -91,10 +105,10 @@ const Navbar = () => {
           </div>
 
           {/* 3. NAVIGATION LINKS (Desktop) */}
-          <div className="hidden lg:flex items-center space-x-8 text-sm font-medium text-slate-300">
-            <Link to="/" className="hover:text-white transition-colors">Home</Link>
-            <Link to="/about" className="hover:text-white transition-colors">About</Link>
-            <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
+          <div className="hidden lg:flex items-center space-x-8 text-sm font-medium">
+            <Link to="/" className={getDesktopClass("/")}>Home</Link>
+            <Link to="/about" className={getDesktopClass("/about")}>About</Link>
+            <Link to="/contact" className={getDesktopClass("/contact")}>Contact</Link>
           </div>
 
           {/* 4. ICONS & ACTIONS */}
@@ -188,9 +202,9 @@ const Navbar = () => {
             </form>
 
             <div className="flex flex-col space-y-1">
-              <Link to="/" className="block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700">Home</Link>
-              <Link to="/about" className="block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700">About</Link>
-              <Link to="/contact" className="block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700">Contact</Link>
+              <Link to="/" className={getMobileClass("/")}>Home</Link>
+              <Link to="/about" className={getMobileClass("/about")}>About</Link>
+              <Link to="/contact" className={getMobileClass("/contact")}>Contact</Link>
             </div>
 
             <div className="border-t border-slate-700 pt-4">
