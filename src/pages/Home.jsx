@@ -93,13 +93,10 @@ const Home = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={() => document.getElementById('shop').scrollIntoView({ behavior: 'smooth' })}
-              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_30px_rgba(37,99,235,0.7)] hover:-translate-y-1"
+              className="group relative inline-flex items-center justify-center gap-3 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.5)] hover:shadow-[0_0_30px_rgba(37,99,235,0.7)] hover:-translate-y-1"
             >
               Explore Collection 
               <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
-            </button>
-            <button className="px-8 py-4 bg-transparent border border-white/20 hover:bg-white/10 text-white rounded-full font-semibold transition-all backdrop-blur-sm">
-              View Lookbook
             </button>
           </div>
         </div>
