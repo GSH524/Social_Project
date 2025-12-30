@@ -5,8 +5,8 @@ import orderItemsRaw from "./orderItems.js";
 import orderReturnsRaw from "./orderReturns.js";
 import productsRaw from "./product.js";
 
-export const customers = customersRaw;
+export const customers = customersRaw.slice(0,5000);
 export const orders = ordersRaw;
 export const orderItems = orderItemsRaw;
 export const orderReturns = orderReturnsRaw;
-export const products = productsRaw.slice(0,1500);
+export const products = productsRaw.slice(0,10000);
