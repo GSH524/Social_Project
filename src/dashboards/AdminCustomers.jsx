@@ -9,7 +9,6 @@ const AdminCustomers = ({ initialCustomers, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   
-  // New User Form Data
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', 
     mobile: '', city: '', country: '', address: '', role: 'user'
@@ -21,11 +20,9 @@ const AdminCustomers = ({ initialCustomers, onUpdate }) => {
     e.preventDefault(); 
     setSaving(true);
     try {
-      // 1. Create Auth User
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
 
-      // 2. Save Profile to Firestore
       await setDoc(doc(db, "users", user.uid), {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -43,7 +40,6 @@ const AdminCustomers = ({ initialCustomers, onUpdate }) => {
       if(onUpdate) onUpdate(); 
       setIsModalOpen(false);
       setFormData({ firstName: '', lastName: '', email: '', password: '', mobile: '', city: '', country: '', address: '', role: 'user' });
-
     } catch(e){ 
       console.error(e);
       alert("Error: " + e.message); 
@@ -54,11 +50,9 @@ const AdminCustomers = ({ initialCustomers, onUpdate }) => {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
-      
-      {/* --- HEADER SECTION --- */}
+      {/* --- HEADER --- */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/5 backdrop-blur-md">
         <h2 className="text-xl font-bold text-white px-2">Customers</h2>
-        
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
@@ -78,12 +72,12 @@ const AdminCustomers = ({ initialCustomers, onUpdate }) => {
         </div>
       </div>
 
-      {/* --- TABLE SECTION --- */}
+      {/* --- TABLE --- */}
       <div className="bg-white/5 border border-white/5 rounded-3xl overflow-hidden backdrop-blur-md shadow-xl">
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-                <tr className="border-b border-white/5 text-slate-400 text-xs uppercase tracking-wider">
+                <tr className="border-b border-white/5 text-slate-400 text-xs uppercase tracking-wider bg-white/5">
                     <th className="p-5 font-semibold">User Profile</th>
                     <th className="p-5 font-semibold">Location</th>
                     <th className="p-5 font-semibold">Role</th>
@@ -127,67 +121,27 @@ const AdminCustomers = ({ initialCustomers, onUpdate }) => {
         </div>
       </div>
 
-      {/* --- ADD USER MODAL --- */}
+      {/* --- MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl p-6 md:p-8 animate-fade-in-up max-h-[90vh] overflow-y-auto scrollbar-none">
-            
             <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-                <h3 className="text-xl font-bold text-white">Create New User Account</h3>
+                <h3 className="text-xl font-bold text-white">Create New User</h3>
                 <button onClick={()=>setIsModalOpen(false)} className="text-slate-400 hover:text-white bg-white/5 p-2 rounded-full transition-colors"><X size={20}/></button>
             </div>
-            
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input 
-                    placeholder="First Name" 
-                    onChange={e=>setFormData({...formData, firstName:e.target.value})} 
-                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none transition-all placeholder-slate-500" 
-                    required
-                />
-                <input 
-                    placeholder="Last Name" 
-                    onChange={e=>setFormData({...formData, lastName:e.target.value})} 
-                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none transition-all placeholder-slate-500" 
-                    required
-                />
+                <input placeholder="First Name" onChange={e=>setFormData({...formData, firstName:e.target.value})} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/>
+                <input placeholder="Last Name" onChange={e=>setFormData({...formData, lastName:e.target.value})} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/>
               </div>
-              
-              <input 
-                placeholder="Email Address" 
-                type="email" 
-                onChange={e=>setFormData({...formData, email:e.target.value})} 
-                className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none transition-all placeholder-slate-500" 
-                required
-              />
-              
-              <input 
-                placeholder="Password (Min 6 chars)" 
-                type="password" 
-                onChange={e=>setFormData({...formData, password:e.target.value})} 
-                className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none transition-all placeholder-slate-500" 
-                required
-              />
-              
+              <input placeholder="Email Address" type="email" onChange={e=>setFormData({...formData, email:e.target.value})} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/>
+              <input placeholder="Password (Min 6 chars)" type="password" onChange={e=>setFormData({...formData, password:e.target.value})} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input 
-                    placeholder="City" 
-                    onChange={e=>setFormData({...formData, city:e.target.value})} 
-                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none transition-all placeholder-slate-500"
-                />
-                <input 
-                    placeholder="Country" 
-                    onChange={e=>setFormData({...formData, country:e.target.value})} 
-                    className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none transition-all placeholder-slate-500"
-                />
+                <input placeholder="City" onChange={e=>setFormData({...formData, city:e.target.value})} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none"/>
+                <input placeholder="Country" onChange={e=>setFormData({...formData, country:e.target.value})} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none"/>
               </div>
-              
               <div className="pt-4">
-                <button 
-                    type="submit" 
-                    disabled={saving} 
-                    className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-violet-900/20 transition-all flex justify-center items-center gap-2"
-                >
+                <button type="submit" disabled={saving} className="w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2">
                     {saving ? <Loader className="animate-spin" size={20}/> : 'Create Account'}
                 </button>
               </div>
