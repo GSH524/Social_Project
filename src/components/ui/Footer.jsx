@@ -19,7 +19,7 @@ const Footer = () => {
 
         {/* 1. Brand Section */}
         <div className="flex flex-col gap-5 items-center sm:items-start">
-          <div className="flex flex-col items-center sm:items-start">
+          <div className="flex flex-col mx-auto items-center sm:items-start">
             <span className="text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors">
               GSH<span className="text-blue-500">.</span>STORE
             </span>
@@ -27,12 +27,12 @@ const Footer = () => {
               Premium Collection
             </span>
           </div>
-          <p className="text-sm max-w-xs mx-auto sm:mx-0 leading-relaxed text-slate-400">
+          <p className="text-sm max-w-xs sm:mx-0 leading-relaxed text-slate-400">
             Lorem ipsum dolor, sit amet consectetur adipisicing elit. Omnis sequi
             repudiandae in expedita reprehenderit natus molestias placeat.
           </p>
 
-          <div className="flex gap-4 mt-2 justify-center sm:justify-start">
+          <div className="flex gap-5 mx-auto mt-2 justify-center sm:justify-start">
             {[
               { icon: <FaFacebookF />, link: "https://www.facebook.com/" },
               { icon: <FaTwitter />, link: "https://x.com/" },
@@ -96,7 +96,7 @@ const Footer = () => {
         {/* 4. Why Choose Us */}
         <div className="flex flex-col gap-4">
           <h4 className="text-lg font-semibold text-white tracking-wide">Why GSH STORE?</h4>
-          <ul className="space-y-3 text-sm text-slate-400">
+          <ul className="space-y-3  mx-auto text-sm text-slate-400">
             <li className="flex items-center justify-center sm:justify-start gap-2">
               <span className="text-blue-500">✔</span> Premium quality products
             </li>

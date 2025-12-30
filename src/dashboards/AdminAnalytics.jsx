@@ -39,6 +39,15 @@ const AdminAnalytics = () => {
                 <option value="All" className="bg-slate-900 text-slate-200">All Months</option>
                 <option value="January" className="bg-slate-900 text-slate-200">January</option>
                 <option value="February" className="bg-slate-900 text-slate-200">February</option>
+                <option value="February" className="bg-slate-900 text-slate-200">March</option>
+                <option value="February" className="bg-slate-900 text-slate-200">April</option>
+                <option value="February" className="bg-slate-900 text-slate-200">May</option>
+                <option value="February" className="bg-slate-900 text-slate-200">June</option>
+                <option value="February" className="bg-slate-900 text-slate-200">July</option>
+                <option value="February" className="bg-slate-900 text-slate-200">August</option>
+                <option value="February" className="bg-slate-900 text-slate-200">Octobar</option>
+                <option value="February" className="bg-slate-900 text-slate-200">Novembar</option>
+                <option value="February" className="bg-slate-900 text-slate-200">Decembar</option>
             </select>
         </div>
       </div>
