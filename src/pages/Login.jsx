@@ -10,7 +10,10 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
-import { FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaLock, FaEnvelope, FaCheckCircle } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaLock, FaEnvelope } from "react-icons/fa";
+// 1. Import Toastify
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const provider = new GoogleAuthProvider();
 
@@ -20,7 +23,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
+  // Removed custom showToast state
 
   const navigate = useNavigate();
 
@@ -46,17 +49,29 @@ const Login = () => {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
 
-      setShowToast(true);
+      // 2. Trigger Success Toast
+      toast.success("Login Successful! Redirecting...", {
+        position: "top-right",
+        autoClose: 1500,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "dark",
+      });
+
       setTimeout(() => {
         if (email === "harigudipati666@gmail.com") {
           navigate("/admindashboard");
         } else {
-          navigate("/userdashboard");
+          navigate("/");
         }
       }, 1500);
 
     } catch (err) {
       setError("Invalid email or password");
+      // Optional: Trigger error toast as well
+      toast.error("Invalid email or password");
     }
   };
 
@@ -87,19 +102,25 @@ const Login = () => {
         });
       }
 
-      setShowToast(true);
+      // 2. Trigger Success Toast
+      toast.success("Google Login Successful!", {
+        position: "top-right",
+        autoClose: 1500,
+        theme: "dark",
+      });
 
       setTimeout(() => {
         if (user.email === "harigudipati666@gmail.com") {
           navigate("/admindashboard");
         } else {
-          navigate("/userdashboard");
+          navigate("/");
         }
       }, 1500);
 
     } catch (err) {
       if (err.code === 'auth/popup-closed-by-user') return; 
       setError("Google login failed. Please try again.");
+      toast.error("Google login failed.");
       console.error(err);
     }
   };
@@ -117,16 +138,8 @@ const Login = () => {
       className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden"
       style={bgStyle}
     >
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-3 bg-emerald-500/90 text-white px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border border-emerald-400/50 animate-bounce">
-          <FaCheckCircle className="text-xl" />
-          <div>
-            <h4 className="font-bold text-sm">Success!</h4>
-            <p className="text-xs text-white/90">Logging you in...</p>
-          </div>
-        </div>
-      )}
+      {/* 3. Add ToastContainer to render the toasts */}
+      <ToastContainer />
 
       {/* Login Card */}
       <div className="w-full max-w-[320px] sm:max-w-sm md:max-w-md bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-[25px] border border-white/10 rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 sm:p-8 md:p-10 relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">

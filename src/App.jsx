@@ -9,6 +9,7 @@ import { setProfile, logout } from './slices/userSlice';
 
 import MainLayout from "./components/ui/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Upload } from "lucide-react";
 
 // Lazy Imports
 const Home = lazy(() => import("./pages/Home"));
@@ -90,6 +91,7 @@ function App() {
 
           <Route path="/admindashboard" element={<AdminDashboard />} />
           <Route path="/userdashboard" element={<UserDashboard />} />
+          <Route path="/upload" element={<Upload/>}/>
         </Route>
 
         <Route path="/login" element={<Login />} />

@@ -1,28 +1,24 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// --- 1. Helper to Load Data from Local Storage ---
-const loadCartState = () => {
-  try {
-    const serializedState = localStorage.getItem('cartState');
-    if (serializedState === null) {
-      return { items: [], totalQuantity: 0, totalPrice: 0 };
-    }
-    return JSON.parse(serializedState);
-  } catch (err) {
-    return { items: [], totalQuantity: 0, totalPrice: 0 };
-  }
+const initialState = {
+  items: [],
+  totalQuantity: 0,
+  totalPrice: 0,
 };
-
-// --- 2. Initialize State with Loaded Data ---
-const initialState = loadCartState();
 
 const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
+    // 1. New Action: Allows Navbar to swap the entire cart when user changes
+    setCart: (state, action) => {
+      state.items = action.payload.items || [];
+      state.totalQuantity = action.payload.totalQuantity || 0;
+      state.totalPrice = action.payload.totalPrice || 0;
+    },
+
     addItem: (state, action) => {
       const newItem = action.payload;
-      // Using 'product_id' as the unique identifier based on your data structure
       const existingItem = state.items.find((item) => item.product_id === newItem.product_id);
       
       if (!existingItem) {
@@ -30,7 +26,7 @@ const cartSlice = createSlice({
           product_id: newItem.product_id,
           product_name: newItem.product_name,
           image_url: newItem.image_url,
-          selling_unit_price: Number(newItem.selling_unit_price), // Ensure number
+          selling_unit_price: Number(newItem.selling_unit_price),
           quantity: 1,
         });
         state.totalQuantity++;
@@ -39,13 +35,9 @@ const cartSlice = createSlice({
         state.totalQuantity++;
       }
 
-      // Recalculate Total Price
       state.totalPrice = state.items.reduce(
         (total, item) => total + Number(item.selling_unit_price) * item.quantity, 0
       );
-
-      // --- 3. Save to Local Storage ---
-      localStorage.setItem('cartState', JSON.stringify(state));
     },
 
     removeItem: (state, action) => {
@@ -57,13 +49,9 @@ const cartSlice = createSlice({
         state.items = state.items.filter((item) => item.product_id !== id);
       }
 
-      // Recalculate Total Price
       state.totalPrice = state.items.reduce(
         (total, item) => total + Number(item.selling_unit_price) * item.quantity, 0
       );
-
-      // --- Save to Local Storage ---
-      localStorage.setItem('cartState', JSON.stringify(state));
     },
 
     updateQuantity: (state, action) => {
@@ -71,7 +59,6 @@ const cartSlice = createSlice({
         const item = state.items.find(item => item.product_id === id);
         
         if(item){
-            // Calculate difference to update totalQuantity correctly
             const diff = quantity - item.quantity;
             item.quantity = quantity;
             state.totalQuantity += diff;
@@ -80,20 +67,15 @@ const cartSlice = createSlice({
         state.totalPrice = state.items.reduce(
             (total, item) => total + Number(item.selling_unit_price) * item.quantity, 0
         );
-
-        // --- Save to Local Storage ---
-        localStorage.setItem('cartState', JSON.stringify(state));
     },
 
     clearCart: (state) => {
       state.items = [];
       state.totalQuantity = 0;
       state.totalPrice = 0;
-      // --- Clear from Local Storage ---
-      localStorage.removeItem('cartState');
     },
   },
 });
 
-export const { addItem, removeItem, updateQuantity, clearCart } = cartSlice.actions;
+export const { addItem, removeItem, updateQuantity, clearCart, setCart } = cartSlice.actions;
 export default cartSlice.reducer;

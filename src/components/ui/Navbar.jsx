@@ -1,12 +1,17 @@
-import React, { useEffect, useState, useRef } from "react"; // 1. Added useRef
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from '../../firebase'; 
 import { FaUser, FaSearch, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
+import {clearCart, setCart} from "../../slices/cartSlice" 
 
 const Navbar = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [isAuth, setIsAuth] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -14,21 +19,61 @@ const Navbar = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 2. Create refs for the dropdown menu and the toggle button
   const dropdownRef = useRef(null);
   const userIconRef = useRef(null);
-
-  const navigate = useNavigate();
-  const location = useLocation();
+  
+  // Get cart from Redux to save it
+  const cart = useSelector(state => state.cart); 
   const totalQuantity = useSelector(state => state.cart.totalQuantity);
 
-  // --- 3. Click Outside Logic ---
+  // --- 1. AUTH & CART LOADING LOGIC ---
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      setIsAuth(!!user);
+
+      if (user) {
+        localStorage.setItem("isAuthenticated", "true");
+        
+        // A. Load this SPECIFIC user's cart from LocalStorage
+        // We use a unique key: 'cart_' + user.uid
+        const savedCart = localStorage.getItem(`cart_${user.uid}`);
+        if (savedCart) {
+          dispatch(setCart(JSON.parse(savedCart)));
+        } else {
+          // If this user has no saved cart, start empty
+          dispatch(clearCart()); 
+        }
+
+        // Fetch Profile Image
+        try {
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) setProfileImage(docSnap.data().profileImage);
+        } catch (error) { console.error(error); }
+
+      } else {
+        // B. User Logged Out: Clear Redux state
+        localStorage.removeItem("isAuthenticated");
+        setProfileImage(null);
+        dispatch(clearCart());
+      }
+    });
+    return () => unsubscribe();
+  }, [dispatch]);
+
+  // --- 2. SAVE CART LOGIC ---
+  // Whenever the cart changes, if a user is logged in, save to THEIR unique key
+  useEffect(() => {
+    if (currentUser?.uid) {
+      localStorage.setItem(`cart_${currentUser.uid}`, JSON.stringify(cart));
+    }
+  }, [cart, currentUser]);
+
+  // --- Click Outside Dropdown Logic ---
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // If dropdown is open...
       if (showDropdown) {
-        // ...and the click target is NOT inside the dropdown
-        // ...and the click target is NOT the icon itself (to prevent conflict with the toggle button)
         if (
           dropdownRef.current && 
           !dropdownRef.current.contains(event.target) &&
@@ -39,35 +84,9 @@ const Navbar = () => {
         }
       }
     };
-
-    // Bind the event listener
     document.addEventListener("mousedown", handleClickOutside);
-    
-    // Unbind the event listener on cleanup
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => { document.removeEventListener("mousedown", handleClickOutside); };
   }, [showDropdown]);
-
-  // --- Auth & Data Logic ---
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      setIsAuth(!!user);
-      if (user) {
-        localStorage.setItem("isAuthenticated", "true");
-        try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) setProfileImage(docSnap.data().profileImage);
-        } catch (error) { console.error(error); }
-      } else {
-        localStorage.removeItem("isAuthenticated");
-        setProfileImage(null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     setIsOpen(false);
@@ -77,6 +96,8 @@ const Navbar = () => {
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.removeItem("isAuthenticated");
+    // Ensure cart is cleared in UI immediately
+    dispatch(clearCart()); 
     navigate("/");
   };
 
@@ -85,36 +106,25 @@ const Navbar = () => {
     if (searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
-  const getDesktopClass = (path) => {
-    return location.pathname === path 
-      ? "text-blue-500 font-bold transition-colors" 
-      : "text-slate-300 hover:text-white transition-colors";
-  };
-
-  const getMobileClass = (path) => {
-    return location.pathname === path 
-      ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" 
-      : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
-  };
+  const getDesktopClass = (path) => location.pathname === path ? "text-blue-500 font-bold transition-colors" : "text-slate-300 hover:text-white transition-colors";
+  const getMobileClass = (path) => location.pathname === path ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
 
   return (
     <nav className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 font-sans shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-8">
 
-          {/* 1. LOGO */}
+          {/* Logo */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-2 group">
             <div className="flex flex-col">
               <span className="text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors">
                 GSH<span className="text-blue-500">.</span>STORE
               </span>
-              <span className="text-[10px] tracking-widest text-slate-400 uppercase -mt-1">
-                Premium Collection
-              </span>
+              <span className="text-[10px] tracking-widest text-slate-400 uppercase -mt-1">Premium Collection</span>
             </div>
           </Link>
 
-          {/* 2. CENTER SEARCH BAR */}
+          {/* Search Bar */}
           <div className="hidden md:flex flex-1 max-w-lg mx-auto">
             <form onSubmit={handleSearch} className="w-full relative flex items-center">
               <input
@@ -124,25 +134,21 @@ const Navbar = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              <button 
-                type="submit" 
-                className="absolute right-2 bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-full transition-colors"
-              >
+              <button type="submit" className="absolute right-2 bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-full transition-colors">
                 <FaSearch size={14} />
               </button>
             </form>
           </div>
 
-          {/* 3. NAVIGATION LINKS */}
+          {/* Desktop Links */}
           <div className="hidden lg:flex items-center space-x-8 text-sm font-medium">
             <Link to="/" className={getDesktopClass("/")}>Home</Link>
             <Link to="/about" className={getDesktopClass("/about")}>About</Link>
             <Link to="/contact" className={getDesktopClass("/contact")}>Contact</Link>
           </div>
 
-          {/* 4. ICONS & ACTIONS */}
+          {/* Icons */}
           <div className="flex items-center gap-5">
-            
             <button className="md:hidden text-slate-300 hover:text-white" onClick={() => setIsOpen(!isOpen)}>
               <FaSearch size={20} />
             </button>
@@ -156,60 +162,32 @@ const Navbar = () => {
               )}
             </Link>
 
-            {/* User Profile Logic */}
+            {/* Profile Dropdown */}
             {isAuth ? (
-              // --- LOGGED IN STATE ---
               <div className="relative hidden md:block">
-                <button 
-                  ref={userIconRef} // 4a. Attach ref to the icon button
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-2 focus:outline-none"
-                >
-                   <div className="h-9 w-9 rounded-full overflow-hidden border border-slate-600 hover:border-blue-500 transition-all">
-                      {profileImage ? (
-                        <img src={profileImage} alt="User" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-slate-800 flex items-center justify-center text-slate-400">
-                           <FaUser size={14} />
-                        </div>
-                      )}
-                   </div>
+                <button ref={userIconRef} onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-2 focus:outline-none">
+                  <div className="h-9 w-9 rounded-full overflow-hidden border border-slate-600 hover:border-blue-500 transition-all">
+                    {profileImage ? <img src={profileImage} alt="User" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-slate-800 flex items-center justify-center text-slate-400"><FaUser size={14} /></div>}
+                  </div>
                 </button>
 
-                {/* Dropdown */}
                 {showDropdown && (
-                  <div 
-                    ref={dropdownRef} // 4b. Attach ref to the dropdown container
-                    className="absolute right-0 mt-3 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm animate-fade-in-up"
-                  >
+                  <div ref={dropdownRef} className="absolute right-0 mt-3 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm animate-fade-in-up">
                     <div className="px-4 py-2 border-b border-slate-700">
                        <p className="text-slate-400 text-xs">Signed in as</p>
                        <p className="text-white font-medium truncate">{currentUser?.email}</p>
                     </div>
-                    
-                    <Link to={currentUser?.email === "harigudipati666@gmail.com" ? "/admindashboard" : "/userdashboard"} 
-                          className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">
-                       Dashboard
-                    </Link>
-                    
-                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-red-400 hover:bg-slate-700 hover:text-red-300">
-                      Sign out
-                    </button>
+                    <Link to={currentUser?.email === "harigudipati666@gmail.com" ? "/admindashboard" : "/userdashboard"} className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</Link>
+                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-red-400 hover:bg-slate-700 hover:text-red-300">Sign out</button>
                   </div>
                 )}
               </div>
             ) : (
-              // --- NOT LOGGED IN STATE ---
-              <button 
-                onClick={() => navigate("/login")} 
-                className="hidden md:block text-slate-300 hover:text-white transition-colors"
-                title="Login / Register"
-              >
+              <button onClick={() => navigate("/login")} className="hidden md:block text-slate-300 hover:text-white transition-colors">
                  <FaUser size={22} />
               </button>
             )}
 
-            {/* Mobile Hamburger */}
             <button className="md:hidden text-slate-300" onClick={() => setIsOpen(!isOpen)}>
               {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
             </button>
@@ -217,27 +195,18 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* --- MOBILE MENU --- */}
+      {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-slate-800 border-t border-slate-700">
           <div className="px-4 pt-4 pb-6 space-y-4">
-            
             <form onSubmit={handleSearch} className="flex items-center">
-               <input 
-                 type="text" 
-                 placeholder="Search..." 
-                 className="w-full bg-slate-900 text-white rounded-lg px-4 py-2.5 text-sm border border-slate-700 outline-none focus:border-blue-500"
-                 value={searchQuery}
-                 onChange={(e) => setSearchQuery(e.target.value)}
-               />
+               <input type="text" placeholder="Search..." className="w-full bg-slate-900 text-white rounded-lg px-4 py-2.5 text-sm border border-slate-700 outline-none focus:border-blue-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/>
             </form>
-
             <div className="flex flex-col space-y-1">
               <Link to="/" className={getMobileClass("/")}>Home</Link>
               <Link to="/about" className={getMobileClass("/about")}>About</Link>
               <Link to="/contact" className={getMobileClass("/contact")}>Contact</Link>
             </div>
-
             <div className="border-t border-slate-700 pt-4">
               {isAuth ? (
                 <div className="flex items-center gap-3 px-3">

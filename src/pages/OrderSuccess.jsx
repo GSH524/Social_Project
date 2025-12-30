@@ -29,7 +29,7 @@ const OrderSuccess = () => {
         {/* Info Box */}
         <div className="bg-slate-950 rounded-xl p-4 mb-8 border border-slate-800 flex items-center justify-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <p className="text-sm text-slate-400">Status: <span className="text-white font-medium">Processing</span></p>
+            <p className="text-sm text-slate-400">Order Status: <span className="text-white font-medium">Processing</span></p>
         </div>
 
         {/* Action Buttons */}

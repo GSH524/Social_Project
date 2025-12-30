@@ -32,6 +32,12 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
       card: cardElement,
+      // 🔹 Added billing_details to link payment to user
+      billing_details: {
+        name: shippingAddress.fullName,
+        email: profile.email,
+        phone: shippingAddress.mobile,
+      },
     });
 
     if (error) {
@@ -53,9 +59,9 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
           // 🔹 Cart Details
           items: cartItems, 
           
-          // 🔹 Amount Details (Stored explicitly as 'amount')
-          amount: totalPrice,       // <--- ADDED THIS FIELD
-          totalAmount: totalPrice,  // Keeping this for compatibility
+          // 🔹 Amount Details
+          amount: totalPrice,
+          totalAmount: totalPrice,
           currency: 'inr',
           
           // 🔹 Payment Meta
@@ -70,7 +76,11 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
 
         // 3. Clear Cart & Redirect
         dispatch(clearCart());
-        toast.success("Order placed successfully!");
+        
+        // 🔹 Show Payment Successful Message
+        toast.success("Payment Successful! Order placed."); 
+        // alert("Payment Successful!"); // Uncomment this if you want a browser popup instead
+
         navigate('/order-success');
         
       } catch (err) {
@@ -86,6 +96,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 transition-colors focus-within:border-blue-500">
         <CardElement options={{
+          hidePostalCode: false, // 🔹 Explicitly ensure Zip/Postal Code is asked
           style: {
             base: {
               fontSize: '16px',

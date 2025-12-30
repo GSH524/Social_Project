@@ -4,20 +4,27 @@ import { AuthContext } from "../context/AuthContext";
 // --- DATA IMPORTS ---
 import { customers, orders as staticOrders, orderItems as staticItems, orderReturns } from "../data/dataUtils.js";
 import products from "../data/product.js"; 
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+// --- FIREBASE IMPORTS ---
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 
-// --- ICONS & CHARTS ---
+// 1. IMPORT TOASTIFY
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// --- ICONS ---
 import { 
   Loader, User, ShoppingBag, CreditCard, LayoutDashboard, Edit, Calendar, 
-  TrendingUp, ArrowUpRight, ArrowDownRight, Package, DollarSign, Activity, MapPin, Phone, Mail, Navigation,
-  Tag, AlertCircle
+  TrendingUp, ArrowUpRight, ArrowDownRight, Package, DollarSign, Activity, MapPin, Phone, 
+  Tag, AlertCircle, CornerUpLeft, X 
 } from 'lucide-react';
+
+// --- CHART JS IMPORTS ---
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import { 
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler 
 } from 'chart.js';
 
-// --- CHART REGISTRATION ---
+// --- REGISTER CHARTS ---
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler);
 ChartJS.defaults.color = '#94a3b8';
 ChartJS.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
@@ -27,7 +34,6 @@ const UserDashboard = () => {
   const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [locLoading, setLocLoading] = useState(false);
   
   // Data States
   const [firebaseProfile, setFirebaseProfile] = useState(null);
@@ -43,6 +49,11 @@ const UserDashboard = () => {
     firstName: "", lastName: "", email: "", mobile: "",
     address: "", city: "", country: "", profileImage: ""
   });
+
+  // Return Modal State
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [selectedReturnOrder, setSelectedReturnOrder] = useState(null);
+  const [returnReason, setReturnReason] = useState("Wrong Size");
 
   // ==========================================
   //  1. FETCH DATA
@@ -79,7 +90,10 @@ const UserDashboard = () => {
           fetchedOrders.sort((a, b) => b.createdAt - a.createdAt);
           setLiveOrders(fetchedOrders);
 
-        } catch (error) { console.error("Error fetching dashboard data:", error); }
+        } catch (error) { 
+            console.error("Error fetching dashboard data:", error); 
+            // Optional: toast.error("Could not load dashboard data.");
+        }
       }
       setLoading(false);
     };
@@ -87,7 +101,7 @@ const UserDashboard = () => {
   }, [user]);
 
   // ==========================================
-  //  2. DATA PROCESSING & MERGING
+  //  2. DATA PROCESSING
   // ==========================================
 
   const matchedCustomer = useMemo(() => 
@@ -100,19 +114,18 @@ const UserDashboard = () => {
       fullName: `${firebaseProfile?.firstName || matchedCustomer?.first_name || ''} ${firebaseProfile?.lastName || matchedCustomer?.last_name || ''}`.trim() || 'User',
       email: firebaseProfile?.email || matchedCustomer?.customer_email || user?.email,
       address: firebaseProfile?.address || matchedCustomer?.customer_address || 'N/A',
-      city: firebaseProfile?.city || matchedCustomer?.customer_city || '',
-      country: firebaseProfile?.country || matchedCustomer?.customer_country || '',
       mobile: firebaseProfile?.mobile || '',
       profileImage: firebaseProfile?.profileImage || matchedCustomer?.customer_image_url || ''
     };
   }, [firebaseProfile, matchedCustomer, user]);
 
   const rawData = useMemo(() => {
-    // 1. Static Data (Legacy)
     const customerId = matchedCustomer?.customer_id;
     const staticUserOrders = customerId ? staticOrders.filter(o => o.customer_id === customerId) : [];
     
-    // 2. Live Data (Firebase)
+    // Flag static orders with source: 'static'
+    const flaggedStaticOrders = staticUserOrders.map(o => ({...o, source: 'static'}));
+
     const formattedLiveOrders = liveOrders.map(order => ({
         order_id: order.id,
         order_date: order.createdAt,
@@ -122,42 +135,22 @@ const UserDashboard = () => {
         items: order.items || []
     }));
 
-    const combinedOrders = [...formattedLiveOrders, ...staticUserOrders];
+    const combinedOrders = [...formattedLiveOrders, ...flaggedStaticOrders];
 
-    // 3. Extract Items for Charts
     let combinedItems = [];
-    
-    // Static Items
     if (customerId) {
         const userOrderIds = new Set(staticUserOrders.map(o => o.order_id));
-        const staticUserItems = staticItems.filter(item => userOrderIds.has(item.order_id));
-        combinedItems = [...staticUserItems];
+        combinedItems = [...staticItems.filter(item => userOrderIds.has(item.order_id))];
     }
-
-    // Live Items
     liveOrders.forEach(order => {
-        if(order.items && Array.isArray(order.items)) {
-            order.items.forEach((item, idx) => {
-                combinedItems.push({
-                    order_item_id: `${order.id}-${idx}`,
-                    order_id: order.id,
-                    product_id: item.product_id,
-                    product_name: item.name || item.product_name,
-                    quantity: item.quantity,
-                    total_amount: (Number(item.selling_unit_price) * item.quantity) || 0,
-                    source: 'live'
-                });
-            });
-        }
+        if(order.items) order.items.forEach((item, idx) => combinedItems.push({
+             order_item_id: `${order.id}-${idx}`, order_id: order.id, product_id: item.product_id, 
+             product_name: item.name || item.product_name, quantity: item.quantity, total_amount: (item.selling_unit_price * item.quantity), source: 'live'
+        }));
     });
 
-    // 4. Returns Logic (Static Only for now)
-    // In a real app, you'd check live order status for "Returned"
     const staticReturnIds = new Set(orderReturns.map(r => r.order_item_id));
-    const returnedItems = combinedItems.filter(i => {
-        if(i.source === 'live') return false; // Assume live items aren't returned yet for demo
-        return staticReturnIds.has(i.order_item_id);
-    });
+    const returnedItems = combinedItems.filter(i => i.source !== 'live' && staticReturnIds.has(i.order_item_id));
 
     return { orders: combinedOrders, items: combinedItems, returns: returnedItems }; 
   }, [matchedCustomer, liveOrders]);
@@ -165,67 +158,35 @@ const UserDashboard = () => {
   // Apply Filters
   const filteredData = useMemo(() => {
     let fOrders = rawData.orders;
-    if (selectedYear !== 'All') {
-      fOrders = fOrders.filter(o => new Date(o.order_date).getFullYear().toString() === selectedYear);
-    }
-    if (selectedMonth !== 'All') {
-        fOrders = fOrders.filter(o => {
-            const date = new Date(o.order_date);
-            return date.toLocaleString('default', { month: 'long' }) === selectedMonth;
-        });
-    }
+    if (selectedYear !== 'All') fOrders = fOrders.filter(o => new Date(o.order_date).getFullYear().toString() === selectedYear);
+    if (selectedMonth !== 'All') fOrders = fOrders.filter(o => new Date(o.order_date).toLocaleString('default', { month: 'long' }) === selectedMonth);
     const fOrderIds = new Set(fOrders.map(o => o.order_id));
-    const fItems = rawData.items.filter(i => fOrderIds.has(i.order_id));
-    // Filter returns to only those associated with the filtered orders
-    const fReturns = rawData.returns.filter(r => fOrderIds.has(r.order_id));
-    
-    return { orders: fOrders, items: fItems, returns: fReturns };
+    return { orders: fOrders, items: rawData.items.filter(i => fOrderIds.has(i.order_id)), returns: rawData.returns.filter(r => fOrderIds.has(r.order_id)) };
   }, [rawData, selectedYear, selectedMonth]);
 
-  // ==========================================
-  //  3. KPI CALCULATIONS
-  // ==========================================
-  
+  // KPI Calculations
   const kpiTotalOrders = filteredData.orders.length;
-  
   const kpiTotalSpend = filteredData.orders.reduce((acc, curr) => acc + curr.order_total_amount, 0);
-  
-  const kpiReturnedOrders = filteredData.orders.filter(o => o.order_status === 'Returned' || o.order_status === 'Cancelled').length 
-                            + filteredData.returns.length; // Approximate logic combining order status + item returns
-  
+  const kpiReturnedOrders = filteredData.orders.filter(o => o.order_status === 'Returned' || o.order_status === 'Cancelled').length + filteredData.returns.length;
   const kpiActiveOrders = filteredData.orders.filter(o => ['Pending', 'Shipped', 'Processing'].includes(o.order_status)).length;
-  
   const kpiAvgOrderValue = kpiTotalOrders > 0 ? (kpiTotalSpend / kpiTotalOrders) : 0;
-
   const formatRupees = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 
   // ==========================================
-  //  4. CHART DATA GENERATION
+  //  3. CHART DATA GENERATION (4 VISUALS)
   // ==========================================
 
-  // Chart 1: Order Trends (Daily Volume)
+  // Visual 1: Line Chart (Order Trends)
   const lineChartData = useMemo(() => {
     const grouped = {};
-    const sortedOrders = [...filteredData.orders].sort((a,b) => new Date(a.order_date) - new Date(b.order_date));
-    sortedOrders.forEach(o => {
+    [...filteredData.orders].sort((a,b) => new Date(a.order_date) - new Date(b.order_date)).forEach(o => {
         const date = new Date(o.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         grouped[date] = (grouped[date] || 0) + 1;
     });
-    return {
-        labels: Object.keys(grouped),
-        datasets: [{
-            label: 'Orders', data: Object.values(grouped), borderColor: '#8b5cf6',
-            backgroundColor: (ctx) => {
-              const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 300);
-              gradient.addColorStop(0, 'rgba(139, 92, 246, 0.5)'); gradient.addColorStop(1, 'rgba(139, 92, 246, 0.0)');
-              return gradient;
-            },
-            borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#8b5cf6'
-        }]
-    };
+    return { labels: Object.keys(grouped), datasets: [{ label: 'Orders', data: Object.values(grouped), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] };
   }, [filteredData]);
 
-  // Chart 2: Category Split
+  // Visual 2: Doughnut Chart (Categories)
   const pieChartData = useMemo(() => {
     const grouped = {};
     filteredData.items.forEach(item => {
@@ -233,158 +194,131 @@ const UserDashboard = () => {
         const category = prod ? prod.product_category : 'Other'; 
         grouped[category] = (grouped[category] || 0) + item.total_amount;
     });
-    return {
-        labels: Object.keys(grouped),
-        datasets: [{
-            data: Object.values(grouped),
-            backgroundColor: ['#8b5cf6', '#06b6d4', '#f43f5e', '#f59e0b', '#10b981', '#6366f1'],
-            borderWidth: 0
-        }]
-    };
+    return { labels: Object.keys(grouped), datasets: [{ data: Object.values(grouped), backgroundColor: ['#8b5cf6', '#06b6d4', '#f43f5e', '#f59e0b', '#10b981'], borderWidth: 0 }] };
   }, [filteredData]);
 
-  // Chart 3: Top Spending Products
+  // Visual 3: Bar Chart (Top Spend)
   const barSpendData = useMemo(() => {
     const grouped = {};
     filteredData.items.forEach(item => {
-        const prod = products.find(p => String(p.product_id) === String(item.product_id));
-        const name = prod ? prod.product_name : (item.product_name || `Item #${item.product_id}`);
+        const name = item.product_name || `Item #${item.product_id}`;
         grouped[name] = (grouped[name] || 0) + item.total_amount;
     });
     const sorted = Object.entries(grouped).sort((a,b) => b[1] - a[1]).slice(0, 5);
     return {
         labels: sorted.map(i => i[0].length > 15 ? i[0].substring(0,15)+'...' : i[0]),
-        datasets: [{ label: 'Spend', data: sorted.map(i => i[1]), backgroundColor: '#06b6d4', borderRadius: 6, barThickness: 20 }]
+        datasets: [{ label: 'Spend', data: sorted.map(i => i[1]), backgroundColor: '#06b6d4', borderRadius: 4, barThickness: 15 }]
     };
   }, [filteredData]);
 
-  // Chart 4: Highest Returns (Based on Static Return Data)
+  // Visual 4: Bar Chart (Returns)
   const barReturnData = useMemo(() => {
     const grouped = {};
-    // Only map static returns for now as live returns aren't implemented
     filteredData.returns.forEach(ret => {
-        const item = staticItems.find(i => i.order_item_id === ret.order_item_id);
-        if (item) {
-             const prod = products.find(p => p.product_id === item.product_id);
-             const name = prod ? prod.product_name : 'Unknown';
-             grouped[name] = (grouped[name] || 0) + 1;
-        }
+        const item = rawData.items.find(i => i.order_item_id === ret.order_item_id);
+        const name = item ? (item.product_name || 'Unknown') : 'Unknown';
+        grouped[name] = (grouped[name] || 0) + 1;
     });
-    // Add logic: If an order status is 'Returned', count all its items
     filteredData.orders.filter(o => o.order_status === 'Returned').forEach(o => {
-        const itemsInOrder = filteredData.items.filter(i => i.order_id === o.order_id);
-        itemsInOrder.forEach(i => {
-             const name = i.product_name || 'Unknown Item';
+        const items = filteredData.items.filter(i => i.order_id === o.order_id);
+        items.forEach(i => {
+             const name = i.product_name || 'Unknown';
              grouped[name] = (grouped[name] || 0) + i.quantity;
         });
     });
-
     const sorted = Object.entries(grouped).sort((a,b) => b[1] - a[1]).slice(0, 5);
     return {
         labels: sorted.map(i => i[0].length > 15 ? i[0].substring(0,15)+'...' : i[0]),
-        datasets: [{ label: 'Returned Units', data: sorted.map(i => i[1]), backgroundColor: '#f43f5e', borderRadius: 6, barThickness: 20 }]
+        datasets: [{ label: 'Returned Units', data: sorted.map(i => i[1]), backgroundColor: '#f43f5e', borderRadius: 4, barThickness: 15 }]
     };
-  }, [filteredData]);
+  }, [filteredData, rawData.items]);
 
-  // ==========================================
-  //  UI HANDLERS
-  // ==========================================
-  
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setEditFormData(prev => ({ ...prev, profileImage: reader.result }));
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleProfileSave = async (e) => {
-    e.preventDefault();
-    if (user?.uid) {
-        await setDoc(doc(db, 'users', user.uid), editFormData, { merge: true });
-        setFirebaseProfile(prev => ({ ...prev, ...editFormData }));
-        setIsEditingProfile(false);
-        alert("Profile updated successfully!");
-    }
-  };
-
-  const handleDetectLocation = () => {
-    if (!navigator.geolocation) { alert("Geolocation not supported"); return; }
-    setLocLoading(true);
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            const { latitude, longitude } = position.coords;
-            try {
-                const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
-                const data = await response.json();
-                setEditFormData(prev => ({ ...prev, city: data.city || data.locality || '', country: data.countryName || '' }));
-            } catch (error) { alert("Could not retrieve city name."); }
-            setLocLoading(false);
-        },
-        () => { setLocLoading(false); alert("Unable to retrieve location."); }
-    );
-  };
-
-  // --- RENDER ---
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <Loader size={48} className="animate-spin text-violet-500" />
-    </div>
-  );
-
-  const commonChartOptions = {
-    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-    scales: { x: { grid: { display: false }, ticks: { color: '#94a3b8' } }, y: { grid: { color: 'rgba(148, 163, 184, 0.05)' }, ticks: { color: '#94a3b8' } } }
-  };
   const horizontalChartOptions = {
     indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
     scales: { x: { grid: { color: 'rgba(148, 163, 184, 0.05)' }, ticks: { color: '#94a3b8' } }, y: { grid: { display: false }, ticks: { color: '#e2e8f0' } } }
   };
 
+  // ==========================================
+  //  4. ACTIONS (Profile & Returns)
+  // ==========================================
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    if (user?.uid) {
+        try {
+            await setDoc(doc(db, 'users', user.uid), editFormData, { merge: true });
+            setFirebaseProfile(prev => ({ ...prev, ...editFormData }));
+            setIsEditingProfile(false);
+            // 2. SUCCESS TOAST
+            toast.success("Profile updated successfully!", { theme: "dark" });
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to update profile.", { theme: "dark" });
+        }
+    }
+  };
+
+  const openReturnModal = (order) => {
+    setSelectedReturnOrder(order);
+    setReturnReason("Wrong Size");
+    setReturnModalOpen(true);
+  };
+
+  const handleReturnSubmit = async () => {
+    if (!selectedReturnOrder) return;
+
+    if (selectedReturnOrder.source === 'live') {
+        try {
+            const orderRef = doc(db, "OrderItems", selectedReturnOrder.order_id);
+            await updateDoc(orderRef, {
+                orderStatus: "Returned",
+                returnReason: returnReason,
+                returnedAt: new Date()
+            });
+            setLiveOrders(prev => prev.map(o => o.id === selectedReturnOrder.order_id ? { ...o, orderStatus: "Returned" } : o));
+            // 3. SUCCESS TOAST
+            toast.success("Return request submitted successfully!", { theme: "dark" });
+        } catch (error) {
+            console.error("Error updating return:", error);
+            // 4. ERROR TOAST
+            toast.error("Failed to process return. Please try again.", { theme: "dark" });
+        }
+    } else {
+        // 5. DEMO TOAST
+        toast.info("Demo Success: Return request logged.", { theme: "dark" });
+    }
+    setReturnModalOpen(false);
+  };
+
+  // --- RENDER ---
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader size={48} className="animate-spin text-violet-500" /></div>;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-violet-500/30 relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden">
       
-      {/* Background Blobs */}
+      {/* 6. TOAST CONTAINER (Essential for rendering) */}
+      <ToastContainer position="top-right" autoClose={3000} />
+
+      {/* Background */}
       <div className="absolute top-[-10%] left-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-violet-600/20 rounded-full blur-[80px] md:blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-cyan-600/10 rounded-full blur-[80px] md:blur-[120px] pointer-events-none" />
-
+      
       <div className="relative z-10 p-3 md:p-8 max-w-[1600px] mx-auto">
-        
-        {/* HEADER */}
         <header className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 mb-8 md:mb-10 border-b border-slate-800/60 pb-6 md:pb-8">
             <div className="space-y-3 w-full xl:w-auto">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs font-medium text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.2)]">
-                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /> Live Dashboard
-                </div>
-                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400 drop-shadow-lg leading-tight">
-                    Welcome, <br className="md:hidden" /> {displayData.firstName}
-                </h1>
-                <p className="text-slate-400 text-sm md:text-lg max-w-2xl">
-                    Here is your overview. You have <span className="text-white font-semibold">{kpiActiveOrders} active orders</span>.
-                </p>
+                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white">Welcome, <br className="md:hidden" /> {displayData.firstName}</h1>
+                <p className="text-slate-400">Overview: <span className="text-white font-semibold">{kpiActiveOrders} active orders</span>.</p>
             </div>
-
-            {/* Navigation Tabs */}
+            {/* Tabs */}
             <div className="w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 scrollbar-hide">
-                <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md min-w-max shadow-[0_10px_30px_-5px_rgba(0,0,0,0.5)]">
+                <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md min-w-max">
                     {[
                         { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-                        { id: 'products', label: 'Products', icon: Tag },
-                        { id: 'profile', label: 'Profile', icon: User },
                         { id: 'orders', label: 'Orders', icon: ShoppingBag },
+                        { id: 'profile', label: 'Profile', icon: User },
                         { id: 'payments', label: 'Payments', icon: CreditCard },
                     ].map((tab) => (
-                        <button 
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`
-                                flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap
-                                ${activeTab === tab.id 
-                                    ? 'bg-violet-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.4)] ring-1 ring-violet-400/50' 
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-800 hover:shadow-inner'}
-                            `}
-                        >
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === tab.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                             <tab.icon size={16} /> {tab.label}
                         </button>
                     ))}
@@ -392,48 +326,24 @@ const UserDashboard = () => {
             </div>
         </header>
 
-        {/* MAIN CONTENT */}
         <div className="animate-fade-in-up">
             
-            {/* 1. OVERVIEW TAB */}
+            {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
                 <>
-                    {/* Filters */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-8">
-                         <div className="flex items-center gap-2 px-4 py-2 bg-slate-900/50 rounded-lg border border-slate-800 text-slate-400 text-sm shadow-md w-full sm:w-auto">
-                             <Calendar size={16} className="text-violet-400" /> Filters:
-                        </div>
-                        <div className="flex gap-4 w-full sm:w-auto">
-                            <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full sm:w-auto bg-slate-900 text-white border border-slate-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-500">
-                                <option value="All">All Years</option>
-                                <option value="2025">2025</option>
-                                <option value="2024">2024</option>
-                            </select>
-                            <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-full sm:w-auto bg-slate-900 text-white border border-slate-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-500">
-                                <option value="All">All Months</option>
-                                {['January','February','March','April','May','June','July','August', 'September', 'October', 'November', 'December'].map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* KPI Cards */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-8">
+                   {/* KPI Cards */}
+                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-8">
                         {[
-                            { title: 'Total Orders', value: kpiTotalOrders, icon: Package, color: 'text-violet-400', trend: '+12%', trendUp: true },
-                            { title: 'Total Spend', value: formatRupees(kpiTotalSpend), icon: DollarSign, color: 'text-cyan-400', trend: '+5.4%', trendUp: true },
-                            { title: 'Returned', value: kpiReturnedOrders, icon: AlertCircle, color: 'text-rose-400', trend: '-2%', trendUp: false },
-                            { title: 'Active Orders', value: kpiActiveOrders, icon: TrendingUp, color: 'text-amber-400', trend: 'Live', trendUp: true },
-                            { title: 'Avg Order Val', value: formatRupees(kpiAvgOrderValue), icon: Activity, color: 'text-emerald-400', trend: '+1.2%', trendUp: true },
+                            { title: 'Total Orders', value: kpiTotalOrders, icon: Package, color: 'text-violet-400', trendUp: true },
+                            { title: 'Total Spend', value: formatRupees(kpiTotalSpend), icon: DollarSign, color: 'text-cyan-400', trendUp: true },
+                            { title: 'Returned', value: kpiReturnedOrders, icon: AlertCircle, color: 'text-rose-400', trendUp: false },
+                            { title: 'Active Orders', value: kpiActiveOrders, icon: TrendingUp, color: 'text-amber-400', trendUp: true },
+                            { title: 'Avg Order Val', value: formatRupees(kpiAvgOrderValue), icon: Activity, color: 'text-emerald-400', trendUp: true },
                         ].map((kpi, idx) => (
-                            <div key={idx} className={`bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 hover:border-slate-600 transition-all duration-300 group shadow-lg`}>
+                            <div key={idx} className={`bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 shadow-lg`}>
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className={`p-2.5 rounded-lg bg-slate-800/50 border border-slate-700 ${kpi.color}`}>
-                                        <kpi.icon size={20} />
-                                    </div>
-                                    <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-slate-800 border border-slate-700 ${kpi.trendUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {kpi.trendUp ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
-                                        {kpi.trend}
-                                    </div>
+                                    <div className={`p-2.5 rounded-lg bg-slate-800/50 border border-slate-700 ${kpi.color}`}><kpi.icon size={20} /></div>
+                                    <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-slate-800 border border-slate-700 ${kpi.trendUp ? 'text-emerald-400' : 'text-rose-400'}`}>{kpi.trendUp ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}</div>
                                 </div>
                                 <h2 className={`text-2xl font-bold text-white mb-1`}>{kpi.value}</h2>
                                 <p className="text-xs font-medium text-slate-400 uppercase">{kpi.title}</p>
@@ -441,25 +351,25 @@ const UserDashboard = () => {
                         ))}
                     </div>
 
-                    {/* Charts Row 1 */}
+                    {/* ROW 1: Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                        <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-6 backdrop-blur-xl">
-                            <h3 className="text-base font-semibold text-white mb-6 flex items-center gap-2"><TrendingUp size={18} className="text-violet-500" /> Order Trends</h3>
-                            <div className="h-64 md:h-72"><Line data={lineChartData} options={commonChartOptions} /></div>
+                        <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+                            <h3 className="text-base font-semibold text-white mb-6">Order Trends</h3>
+                            <div className="h-64 md:h-72"><Line data={lineChartData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false }}, scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }} /></div>
                         </div>
-                        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-6 backdrop-blur-xl">
-                            <h3 className="text-base font-semibold text-white mb-6 flex items-center gap-2"><Activity size={18} className="text-cyan-500" /> Category Split</h3>
+                        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
+                            <h3 className="text-base font-semibold text-white mb-6">Category Split</h3>
                             <div className="h-64 md:h-72 relative"><Doughnut data={pieChartData} options={{ maintainAspectRatio: false }} /></div>
                         </div>
                     </div>
 
-                    {/* Charts Row 2 */}
+                    {/* ROW 2: Bar Charts */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-6 backdrop-blur-xl">
+                        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
                             <h3 className="text-base font-semibold text-white mb-6 flex items-center gap-2"><DollarSign size={18} className="text-emerald-500" /> Top Spending Products</h3>
                             <div className="h-64"><Bar data={barSpendData} options={horizontalChartOptions} /></div>
                         </div>
-                        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-6 backdrop-blur-xl">
+                        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl">
                             <h3 className="text-base font-semibold text-white mb-6 flex items-center gap-2"><AlertCircle size={18} className="text-rose-500" /> Highest Returns</h3>
                             <div className="h-64"><Bar data={barReturnData} options={horizontalChartOptions} /></div>
                         </div>
@@ -467,9 +377,7 @@ const UserDashboard = () => {
                 </>
             )}
 
-            {/* Other tabs remain the same (Products, Profile, Orders, Payments) */}
-            {/* ... (These sections from previous code can be pasted here unchanged if needed, omitted for brevity as specifically asked for Dash/Graphs) ... */}
-            {/* For completeness, here is the Order History Table logic again to ensure it works */}
+            {/* ORDERS TAB */}
             {activeTab === 'orders' && (
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-xl">
                     <div className="p-6 border-b border-slate-800"><h3 className="text-lg font-bold text-white flex items-center gap-2"><ShoppingBag size={20} className="text-violet-500"/> Order History</h3></div>
@@ -481,6 +389,7 @@ const UserDashboard = () => {
                                     <th className="p-5 font-semibold">Date</th>
                                     <th className="p-5 font-semibold text-right">Amount</th>
                                     <th className="p-5 font-semibold text-center">Status</th>
+                                    <th className="p-5 font-semibold text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
@@ -490,9 +399,26 @@ const UserDashboard = () => {
                                         <td className="p-5 text-sm text-slate-300">{new Date(order.order_date).toLocaleDateString()}</td>
                                         <td className="p-5 text-sm text-white font-bold text-right">{formatRupees(order.order_total_amount)}</td>
                                         <td className="p-5 text-center">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${order.order_status === 'Processing' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border 
+                                                ${order.order_status === 'Processing' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 
+                                                  order.order_status === 'Returned' || order.order_status === 'Cancelled' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                                  'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                                                 {order.order_status}
                                             </span>
+                                        </td>
+                                        <td className="p-5 text-center">
+                                            <button 
+                                                onClick={() => openReturnModal(order)}
+                                                disabled={['Returned', 'Cancelled'].includes(order.order_status)}
+                                                className={`flex items-center justify-center gap-1 mx-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                                                    ${['Returned', 'Cancelled'].includes(order.order_status) 
+                                                        ? 'opacity-50 cursor-not-allowed text-slate-500 bg-slate-800' 
+                                                        : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/30'
+                                                    }`}
+                                            >
+                                                <CornerUpLeft size={14} /> 
+                                                {['Returned', 'Cancelled'].includes(order.order_status) ? 'Closed' : 'Return'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -503,6 +429,7 @@ const UserDashboard = () => {
                 </div>
             )}
             
+            {/* PROFILE TAB */}
             {activeTab === 'profile' && (
                 <div className="max-w-5xl mx-auto bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-xl">
                     <div className="h-24 md:h-32 bg-gradient-to-r from-violet-900 to-slate-900"></div>
@@ -519,7 +446,6 @@ const UserDashboard = () => {
                                 <Edit size={16} /> {isEditingProfile ? 'Cancel' : 'Edit Profile'}
                             </button>
                         </div>
-
                         {isEditingProfile ? (
                             <form onSubmit={handleProfileSave} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/50 p-6 rounded-2xl border border-slate-800">
                                 {['firstName', 'lastName', 'mobile', 'address', 'city', 'country'].map(field => (
@@ -540,6 +466,7 @@ const UserDashboard = () => {
                 </div>
             )}
 
+            {/* PAYMENTS TAB */}
             {activeTab === 'payments' && (
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-xl">
                     <div className="p-6 border-b border-slate-800"><h3 className="text-lg font-bold text-white flex items-center gap-2"><CreditCard size={20} className="text-emerald-500"/> Payment History</h3></div>
@@ -570,6 +497,49 @@ const UserDashboard = () => {
 
         </div>
       </div>
+
+      {/* RETURN CONFIRMATION MODAL */}
+      {returnModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl transform transition-all scale-100 animate-fade-in-up">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <CornerUpLeft size={24} className="text-rose-500" /> Return Order
+                    </h3>
+                    <button onClick={() => setReturnModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                </div>
+                
+                <p className="text-slate-300 text-sm mb-4">
+                    You are requesting a return for Order <span className="text-violet-400 font-mono">#{selectedReturnOrder?.order_id.toString().slice(-8)}</span>.
+                </p>
+
+                <div className="mb-6">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Reason</label>
+                    <div className="space-y-2">
+                        {['Wrong Size', 'Damaged Item', 'Not as Described', 'Changed Mind'].map((reason) => (
+                            <label key={reason} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${returnReason === reason ? 'bg-violet-600/20 border-violet-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-800/80'}`}>
+                                <input 
+                                    type="radio" 
+                                    name="returnReason" 
+                                    value={reason} 
+                                    checked={returnReason === reason} 
+                                    onChange={(e) => setReturnReason(e.target.value)}
+                                    className="accent-violet-500 w-4 h-4"
+                                />
+                                <span className="text-sm font-medium">{reason}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button onClick={() => setReturnModalOpen(false)} className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-semibold hover:bg-slate-700">Cancel</button>
+                    <button onClick={handleReturnSubmit} className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-500 shadow-lg shadow-rose-500/20">Confirm Return</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
