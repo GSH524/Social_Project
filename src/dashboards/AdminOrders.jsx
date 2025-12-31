@@ -206,5 +206,5 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
     </div>
   );
 };
-
+ 
 export default AdminOrders;
