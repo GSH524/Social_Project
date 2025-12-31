@@ -23,8 +23,6 @@ const AdminDashboard = lazy(() => import("./dashboards/AdminDashboard"));
 const PageNotFound = lazy(() => import("./pages/PageNotFound"));
 const UserDashboard = lazy(() => import("./dashboards/UserDashboard"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-
-// --- ADDED THESE MISSING IMPORTS ---
 const Shipping = lazy(() => import("./pages/Shipping"));
 const Payment = lazy(() => import("./pages/Payment"));
 const OrderSuccess = lazy(() => import("./pages/OrderSuccess")); 

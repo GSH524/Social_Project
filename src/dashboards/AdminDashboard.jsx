@@ -3,10 +3,10 @@ import { Line, Pie, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { 
   LayoutDashboard, ShoppingBag, Users, Package, Settings, FileText, 
-  BarChart2, Menu, X, User, Camera, Loader, TrendingUp, Filter, Calendar
+  BarChart2, Menu, X, User, Camera, Loader, TrendingUp, Filter, Calendar, Bell, Check, AlertCircle
 } from 'lucide-react';
 import { auth, db } from "../firebase"; 
-import { doc, getDoc, updateDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, getDocs, onSnapshot, query, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 
 // Static Data Utils
 import { 
@@ -27,6 +27,121 @@ import AdminSettings from './AdminSettings';
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler);
 ChartJS.defaults.color = '#94a3b8';
 ChartJS.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+
+// --- SUB-COMPONENT: ADMIN NOTIFICATION BELL ---
+const AdminNotificationPanel = ({ onUpdate }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
+
+  useEffect(() => {
+    // Listen for ADMIN notifications
+    const q = query(
+      collection(db, "notifications"), 
+      where("type", "==", "admin") 
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      notes.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setNotifications(notes);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const markAsRead = async (id) => {
+    await deleteDoc(doc(db, "notifications", id));
+  };
+
+  const handleAcceptReturn = async (notification) => {
+    if(!notification.fullOrderId || !notification.senderId) return;
+    setProcessingId(notification.id);
+
+    try {
+        // 1. Update Order Status to "Returned"
+        const orderRef = doc(db, "OrderItems", notification.fullOrderId);
+        await updateDoc(orderRef, {
+            orderStatus: "Returned",
+            returnAcceptedAt: new Date()
+        });
+
+        // 2. Notify User
+        await addDoc(collection(db, "notifications"), {
+            type: "user",
+            recipientId: notification.senderId,
+            message: `Your return request for Order #${notification.fullOrderId.slice(0,6)}... has been ACCEPTED.`,
+            createdAt: serverTimestamp(),
+            read: false
+        });
+
+        // 3. Remove this notification
+        await deleteDoc(doc(db, "notifications", notification.id));
+        
+        // 4. Trigger dashboard refresh
+        if(onUpdate) onUpdate();
+        
+        alert("Return Accepted and User Notified.");
+    } catch (error) {
+        console.error("Error accepting return:", error);
+        alert("Failed to accept return.");
+    } finally {
+        setProcessingId(null);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-slate-400 hover:text-white transition-colors">
+        <Bell size={24} />
+        {notifications.length > 0 && (
+          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border border-slate-900"></span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in-up">
+          <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+            <h4 className="font-bold text-white text-sm">Notifications</h4>
+            <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-500 hover:text-white"/></button>
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-500">No new notifications</div>
+            ) : (
+              notifications.map(note => (
+                <div key={note.id} className="p-4 border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex gap-2 items-center">
+                        <div className="p-1 bg-amber-500/10 rounded text-amber-500"><AlertCircle size={14}/></div>
+                        <span className="text-xs font-bold text-white">{note.senderName}</span>
+                    </div>
+                    <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400">
+                        <X size={14}/>
+                    </button>
+                  </div>
+                  <p className="text-sm text-slate-300 mb-2">{note.message}</p>
+                  
+                  {note.fullOrderId && (
+                      <button 
+                        onClick={() => handleAcceptReturn(note)}
+                        disabled={processingId === note.id}
+                        className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2"
+                      >
+                         {processingId === note.id ? <Loader className="animate-spin" size={12}/> : "Accept Return"}
+                      </button>
+                  )}
+                  <p className="text-[10px] text-slate-500 mt-2 text-right">{note.createdAt?.toDate().toLocaleString()}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -257,6 +372,9 @@ const AdminDashboard = () => {
         </div>
 
         <div className="flex items-center gap-3 lg:gap-4">
+          {/* ADMIN NOTIFICATION BELL */}
+          <AdminNotificationPanel onUpdate={fetchAllData} />
+
           <div className="h-8 w-px bg-white/10 mx-1 hidden sm:block"></div>
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setEditFormData(adminProfile); setShowProfileModal(true); }}>
             <div className="text-right hidden md:block">
@@ -310,7 +428,6 @@ const AdminDashboard = () => {
                   
                   {/* --- FILTER DROPDOWNS --- */}
                   <div className="flex gap-3 bg-black/20 border border-white/10 p-2 rounded-xl">
-                      
                       {/* Year Selector */}
                       <div className="relative group">
                           <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none text-slate-500"><Calendar size={14}/></div>
@@ -369,7 +486,6 @@ const AdminDashboard = () => {
 
                 {/* --- CHARTS ROW 1 (Line + Pie) --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  
                   {/* Revenue Line Chart */}
                   <div className="lg:col-span-2 bg-white/5 border border-white/5 rounded-3xl p-6 lg:p-8 backdrop-blur-sm relative overflow-hidden shadow-xl">
                     <h3 className="text-lg font-bold text-white mb-6">Revenue Trend ({selectedMonth ? 'Daily' : 'Monthly'})</h3>
@@ -421,11 +537,11 @@ const AdminDashboard = () => {
                 {/* --- CHARTS ROW 2 (Bar Chart) --- */}
                 <div className="grid grid-cols-1">
                     <div className="bg-white/5 border border-white/5 rounded-3xl p-6 lg:p-8 backdrop-blur-sm relative shadow-xl">
-                         <div className="flex items-center gap-3 mb-6">
+                          <div className="flex items-center gap-3 mb-6">
                             <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400"><TrendingUp size={20}/></div>
                             <h3 className="text-lg font-bold text-white">Order Volume ({selectedMonth ? 'Daily' : 'Monthly'})</h3>
-                         </div>
-                         <div className="h-60 lg:h-72 w-full">
+                          </div>
+                          <div className="h-60 lg:h-72 w-full">
                             <Bar
                                 data={{
                                     labels: chartData.labels,
@@ -434,7 +550,7 @@ const AdminDashboard = () => {
                                         data: chartData.orders,
                                         backgroundColor: '#10b981',
                                         borderRadius: 6,
-                                        barThickness: selectedMonth ? 15 : 30 // Thinner bars for days
+                                        barThickness: selectedMonth ? 15 : 30 
                                     }]
                                 }}
                                 options={{
@@ -447,7 +563,7 @@ const AdminDashboard = () => {
                                     }
                                 }}
                             />
-                         </div>
+                          </div>
                     </div>
                 </div>
 

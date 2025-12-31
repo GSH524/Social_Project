@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, Calendar, User, Filter, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, Calendar, User, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { db } from "../firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const AdminOrders = ({ initialOrders, onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,7 +15,8 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
     return idMatch && statusMatch;
   });
 
-  const handleStatusChange = async (id, newStatus, isFirebase) => {
+  // 🔹 UPDATED: Now accepts 'customerId' to send notification
+  const handleStatusChange = async (id, newStatus, isFirebase, customerId) => {
     // Only attempt to update Firebase if the order actually exists there
     if (!isFirebase) {
       alert("This is a demo order. Changes won't persist to the database.");
@@ -24,10 +25,21 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
 
     setIsUpdating(id);
     try {
-      // 🔹 UPDATE: Pointing to 'OrderItems' collection with 'orderStatus' field
+      // 1. Update status in Firestore
       await updateDoc(doc(db, "OrderItems", String(id)), { orderStatus: newStatus });
       
-      // Trigger parent refresh
+      // 2. 🔹 NEW: Send Notification to User
+      if (customerId) {
+        await addDoc(collection(db, "notifications"), {
+            type: "user", // Targeted at User
+            recipientId: customerId, // The User's UID
+            message: `Your Order #${String(id).substring(0, 8)}... status has been updated to: ${newStatus}`,
+            createdAt: serverTimestamp(),
+            read: false
+        });
+      }
+
+      // 3. Trigger parent refresh
       if (onUpdate) await onUpdate();
       
     } catch (e) { 
@@ -42,9 +54,11 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
     switch(s) {
       case 'Delivered': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
       case 'Pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'Processing': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'Cancelled': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'Processing': return 'bg-sky-500/10 text-sky-400 border-sky-500/20';
       case 'Shipped': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'Cancelled': return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+      case 'Returned': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      case 'Return Requested': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
       default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
     }
   };
@@ -80,6 +94,8 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
               <option value="Processing">Processing</option>
               <option value="Shipped">Shipped</option>
               <option value="Delivered">Delivered</option>
+              <option value="Return Requested">Return Requested</option>
+              <option value="Returned">Returned</option>
               <option value="Cancelled">Cancelled</option>
             </select>
             <Filter size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"/>
@@ -123,16 +139,32 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
                         <span className="truncate max-w-[120px]" title={o.customer_id}>{o.customer_id}</span>
                       </div>
                     </td>
+                    
+                    {/* 🔹 STATUS COLUMN (With Return Reason) */}
                     <td className="p-5">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border tracking-wide uppercase ${getStatusColor(o.order_status)}`}>
-                        {o.order_status}
-                      </span>
+                      <div className="flex flex-col items-start gap-2">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border tracking-wide uppercase ${getStatusColor(o.order_status)}`}>
+                            {o.order_status === 'Return Requested' && <AlertCircle size={10} className="mr-1" />}
+                            {o.order_status}
+                          </span>
+                          
+                          {/* 🔹 SHOW RETURN REASON IF EXISTS */}
+                          {(o.order_status === 'Return Requested' || o.order_status === 'Returned') && o.returnReason && (
+                              <div className="text-[10px] bg-slate-800/80 px-2 py-1 rounded border border-slate-700 text-slate-300">
+                                <span className="text-slate-500 font-bold uppercase mr-1">Reason:</span> 
+                                {o.returnReason}
+                              </div>
+                          )}
+                      </div>
                     </td>
+
                     <td className="p-5 text-right font-bold text-white font-mono">
-                      {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(o.order_total_amount))}
+                      {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(o.order_total_amount))}
                     </td>
+                    
+                    {/* Action Column */}
                     <td className="p-5 text-center">
-                      <div className="relative inline-block w-32 group/select">
+                      <div className="relative inline-block w-36 group/select">
                         {isUpdating === o.order_id ? (
                           <div className="flex items-center justify-center py-1.5 bg-slate-800 rounded-lg">
                             <Loader2 size={16} className="text-violet-500 animate-spin" />
@@ -141,13 +173,16 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
                           <>
                             <select 
                               value={o.order_status} 
-                              onChange={(e) => handleStatusChange(o.order_id, e.target.value, o.isFirebase)} 
-                              className="w-full appearance-none bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-violet-500 transition-colors"
+                              // 🔹 Pass customer_id (which acts as userId) to the handler
+                              onChange={(e) => handleStatusChange(o.order_id, e.target.value, o.isFirebase, o.customer_id)} 
+                              className={`w-full appearance-none bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 outline-none cursor-pointer focus:border-violet-500 transition-colors ${o.order_status === 'Return Requested' ? 'border-orange-500/50 text-orange-200' : ''}`}
                             >
                               <option value="Pending">Pending</option>
                               <option value="Processing">Processing</option>
                               <option value="Shipped">Shipped</option>
                               <option value="Delivered">Delivered</option>
+                              <option value="Return Requested">Return Requested</option>
+                              <option value="Returned">Returned</option>
                               <option value="Cancelled">Cancelled</option>
                             </select>
                             <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none group-hover/select:text-violet-400 transition-colors"/>

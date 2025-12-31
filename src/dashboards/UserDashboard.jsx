@@ -5,7 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 import { customers, orders as staticOrders, orderItems as staticItems, orderReturns } from "../data/dataUtils.js";
 import products from "../data/product.js"; 
 // --- FIREBASE IMPORTS ---
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, deleteDoc } from "firebase/firestore";
 
 // 1. IMPORT TOASTIFY
 import { toast, ToastContainer } from 'react-toastify';
@@ -13,9 +13,9 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // --- ICONS ---
 import { 
-  Loader, User, ShoppingBag, CreditCard, LayoutDashboard, Edit, Calendar, 
+  Loader, User, ShoppingBag, CreditCard, LayoutDashboard, Edit, 
   TrendingUp, ArrowUpRight, ArrowDownRight, Package, DollarSign, Activity, MapPin, Phone, 
-  Tag, AlertCircle, CornerUpLeft, X 
+  AlertCircle, CornerUpLeft, X, Bell, Check
 } from 'lucide-react';
 
 // --- CHART JS IMPORTS ---
@@ -24,11 +24,79 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler 
 } from 'chart.js';
 
-// --- REGISTER CHARTS ---
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler);
 ChartJS.defaults.color = '#94a3b8';
 ChartJS.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
 ChartJS.defaults.font.family = "'Inter', sans-serif";
+
+// --- SUB-COMPONENT: NOTIFICATION BELL ---
+const NotificationsPanel = ({ userId }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    // Listen for notifications where type is user and recipient is current user
+    const q = query(
+      collection(db, "notifications"), 
+      where("recipientId", "==", userId),
+      where("type", "==", "user") // Notifications for users
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Sort by time descending locally
+      notes.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setNotifications(notes);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  const markAsRead = async (id) => {
+    await deleteDoc(doc(db, "notifications", id));
+  };
+
+  return (
+    <div className="relative">
+      <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-slate-400 hover:text-white transition-colors">
+        <Bell size={24} />
+        {notifications.length > 0 && (
+          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border border-slate-900"></span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in-up">
+          <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+            <h4 className="font-bold text-white text-sm">Notifications</h4>
+            <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-500 hover:text-white"/></button>
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-500">No new notifications</div>
+            ) : (
+              notifications.map(note => (
+                <div key={note.id} className="p-4 border-b border-slate-800 hover:bg-slate-800/50 transition-colors flex gap-3">
+                  <div className="mt-1 p-1.5 bg-emerald-500/10 rounded-full text-emerald-400 h-fit">
+                    <Check size={14} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-slate-300 mb-1">{note.message}</p>
+                    <p className="text-[10px] text-slate-500">{note.createdAt?.toDate().toLocaleString()}</p>
+                  </div>
+                  <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400 self-start">
+                    <X size={14}/>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const UserDashboard = () => {
   const { user } = useContext(AuthContext);
@@ -56,10 +124,12 @@ const UserDashboard = () => {
   const [returnReason, setReturnReason] = useState("Wrong Size");
 
   // ==========================================
-  //  1. FETCH DATA
+  //  1. FETCH DATA (FIXED LOGIC)
   // ==========================================
   useEffect(() => {
-    const fetchData = async () => {
+    let unsubscribeOrders = () => {}; // Initial no-op function
+
+    const initializeDashboard = async () => {
       setLoading(true);
       if (user?.uid) {
         try {
@@ -68,36 +138,57 @@ const UserDashboard = () => {
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
-              const data = docSnap.data();
-              setFirebaseProfile(data);
-              setEditFormData({
-                firstName: data.firstName || "", lastName: data.lastName || "",
-                email: data.email || user.email || "", mobile: data.mobile || "",
-                address: data.address || "", city: data.city || "",
-                country: data.country || "", profileImage: data.profileImage || ""
-              });
+             const data = docSnap.data();
+             setFirebaseProfile(data);
+             setEditFormData({
+               firstName: data.firstName || "", lastName: data.lastName || "",
+               email: data.email || user.email || "", mobile: data.mobile || "",
+               address: data.address || "", city: data.city || "",
+               country: data.country || "", profileImage: data.profileImage || ""
+             });
           }
 
-          // B. Fetch Live Orders
+          // B. Fetch Live Orders (Real-time listener)
           const q = query(collection(db, "OrderItems"), where("userId", "==", user.uid));
-          const orderSnap = await getDocs(q);
-          const fetchedOrders = orderSnap.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date() 
-          }));
           
-          fetchedOrders.sort((a, b) => b.createdAt - a.createdAt);
-          setLiveOrders(fetchedOrders);
+          unsubscribeOrders = onSnapshot(q, 
+            (snapshot) => {
+                const fetchedOrders = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date() 
+                }));
+                fetchedOrders.sort((a, b) => b.createdAt - a.createdAt);
+                setLiveOrders(fetchedOrders);
+                
+                // CRITICAL FIX: Set loading false HERE after data is received
+                setLoading(false);
+            }, 
+            (error) => {
+                console.error("Snapshot Error:", error);
+                setLoading(false); // Ensure loading stops even on error
+            }
+          );
+          
+          // NOTE: We do NOT call setLoading(false) here immediately, 
+          // because onSnapshot is async and we want to wait for the first data callback.
 
         } catch (error) { 
-            console.error("Error fetching dashboard data:", error); 
-            // Optional: toast.error("Could not load dashboard data.");
+            console.error("Error initializing dashboard:", error); 
+            setLoading(false);
         }
+      } else {
+          // No user, stop loading immediately
+          setLoading(false);
       }
-      setLoading(false);
     };
-    fetchData();
+
+    initializeDashboard();
+
+    // Cleanup: execute the function stored in the variable
+    return () => {
+        unsubscribeOrders();
+    };
   }, [user]);
 
   // ==========================================
@@ -167,79 +258,13 @@ const UserDashboard = () => {
   // KPI Calculations
   const kpiTotalOrders = filteredData.orders.length;
   const kpiTotalSpend = filteredData.orders.reduce((acc, curr) => acc + curr.order_total_amount, 0);
-  const kpiReturnedOrders = filteredData.orders.filter(o => o.order_status === 'Returned' || o.order_status === 'Cancelled').length + filteredData.returns.length;
+  const kpiReturnedOrders = filteredData.orders.filter(o => o.order_status === 'Returned' || o.order_status === 'Return Requested').length + filteredData.returns.length;
   const kpiActiveOrders = filteredData.orders.filter(o => ['Pending', 'Shipped', 'Processing'].includes(o.order_status)).length;
   const kpiAvgOrderValue = kpiTotalOrders > 0 ? (kpiTotalSpend / kpiTotalOrders) : 0;
   const formatRupees = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 
   // ==========================================
-  //  3. CHART DATA GENERATION (4 VISUALS)
-  // ==========================================
-
-  // Visual 1: Line Chart (Order Trends)
-  const lineChartData = useMemo(() => {
-    const grouped = {};
-    [...filteredData.orders].sort((a,b) => new Date(a.order_date) - new Date(b.order_date)).forEach(o => {
-        const date = new Date(o.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        grouped[date] = (grouped[date] || 0) + 1;
-    });
-    return { labels: Object.keys(grouped), datasets: [{ label: 'Orders', data: Object.values(grouped), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] };
-  }, [filteredData]);
-
-  // Visual 2: Doughnut Chart (Categories)
-  const pieChartData = useMemo(() => {
-    const grouped = {};
-    filteredData.items.forEach(item => {
-        const prod = products.find(p => String(p.product_id) === String(item.product_id));
-        const category = prod ? prod.product_category : 'Other'; 
-        grouped[category] = (grouped[category] || 0) + item.total_amount;
-    });
-    return { labels: Object.keys(grouped), datasets: [{ data: Object.values(grouped), backgroundColor: ['#8b5cf6', '#06b6d4', '#f43f5e', '#f59e0b', '#10b981'], borderWidth: 0 }] };
-  }, [filteredData]);
-
-  // Visual 3: Bar Chart (Top Spend)
-  const barSpendData = useMemo(() => {
-    const grouped = {};
-    filteredData.items.forEach(item => {
-        const name = item.product_name || `Item #${item.product_id}`;
-        grouped[name] = (grouped[name] || 0) + item.total_amount;
-    });
-    const sorted = Object.entries(grouped).sort((a,b) => b[1] - a[1]).slice(0, 5);
-    return {
-        labels: sorted.map(i => i[0].length > 15 ? i[0].substring(0,15)+'...' : i[0]),
-        datasets: [{ label: 'Spend', data: sorted.map(i => i[1]), backgroundColor: '#06b6d4', borderRadius: 4, barThickness: 15 }]
-    };
-  }, [filteredData]);
-
-  // Visual 4: Bar Chart (Returns)
-  const barReturnData = useMemo(() => {
-    const grouped = {};
-    filteredData.returns.forEach(ret => {
-        const item = rawData.items.find(i => i.order_item_id === ret.order_item_id);
-        const name = item ? (item.product_name || 'Unknown') : 'Unknown';
-        grouped[name] = (grouped[name] || 0) + 1;
-    });
-    filteredData.orders.filter(o => o.order_status === 'Returned').forEach(o => {
-        const items = filteredData.items.filter(i => i.order_id === o.order_id);
-        items.forEach(i => {
-             const name = i.product_name || 'Unknown';
-             grouped[name] = (grouped[name] || 0) + i.quantity;
-        });
-    });
-    const sorted = Object.entries(grouped).sort((a,b) => b[1] - a[1]).slice(0, 5);
-    return {
-        labels: sorted.map(i => i[0].length > 15 ? i[0].substring(0,15)+'...' : i[0]),
-        datasets: [{ label: 'Returned Units', data: sorted.map(i => i[1]), backgroundColor: '#f43f5e', borderRadius: 4, barThickness: 15 }]
-    };
-  }, [filteredData, rawData.items]);
-
-  const horizontalChartOptions = {
-    indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-    scales: { x: { grid: { color: 'rgba(148, 163, 184, 0.05)' }, ticks: { color: '#94a3b8' } }, y: { grid: { display: false }, ticks: { color: '#e2e8f0' } } }
-  };
-
-  // ==========================================
-  //  4. ACTIONS (Profile & Returns)
+  //  3. ACTIONS (Profile & Returns)
   // ==========================================
 
   const handleProfileSave = async (e) => {
@@ -249,7 +274,6 @@ const UserDashboard = () => {
             await setDoc(doc(db, 'users', user.uid), editFormData, { merge: true });
             setFirebaseProfile(prev => ({ ...prev, ...editFormData }));
             setIsEditingProfile(false);
-            // 2. SUCCESS TOAST
             toast.success("Profile updated successfully!", { theme: "dark" });
         } catch (error) {
             console.error(error);
@@ -270,24 +294,95 @@ const UserDashboard = () => {
     if (selectedReturnOrder.source === 'live') {
         try {
             const orderRef = doc(db, "OrderItems", selectedReturnOrder.order_id);
+            
+            // 1. Update Order Status to 'Return Requested' (NOT Returned yet)
             await updateDoc(orderRef, {
-                orderStatus: "Returned",
+                orderStatus: "Return Requested",
                 returnReason: returnReason,
-                returnedAt: new Date()
+                returnRequestedAt: new Date()
             });
-            setLiveOrders(prev => prev.map(o => o.id === selectedReturnOrder.order_id ? { ...o, orderStatus: "Returned" } : o));
-            // 3. SUCCESS TOAST
-            toast.success("Return request submitted successfully!", { theme: "dark" });
+
+            // 2. Send Notification to ADMIN
+            await addDoc(collection(db, "notifications"), {
+                type: "admin", // Target admin
+                senderId: user.uid,
+                senderName: displayData.fullName,
+                orderId: selectedReturnOrder.order_id,
+                message: `Return requested for Order #${selectedReturnOrder.order_id.slice(0,6)}...`,
+                fullOrderId: selectedReturnOrder.order_id,
+                returnReason: returnReason,
+                createdAt: serverTimestamp(),
+                read: false
+            });
+
+            toast.success("Return request submitted to Admin!", { theme: "dark" });
         } catch (error) {
             console.error("Error updating return:", error);
-            // 4. ERROR TOAST
             toast.error("Failed to process return. Please try again.", { theme: "dark" });
         }
     } else {
-        // 5. DEMO TOAST
         toast.info("Demo Success: Return request logged.", { theme: "dark" });
     }
     setReturnModalOpen(false);
+  };
+
+  // --- CHART DATA GENERATION ---
+  const lineChartData = useMemo(() => {
+    const grouped = {};
+    [...filteredData.orders].sort((a,b) => new Date(a.order_date) - new Date(b.order_date)).forEach(o => {
+        const date = new Date(o.order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        grouped[date] = (grouped[date] || 0) + 1;
+    });
+    return { labels: Object.keys(grouped), datasets: [{ label: 'Orders', data: Object.values(grouped), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] };
+  }, [filteredData]);
+
+  const pieChartData = useMemo(() => {
+    const grouped = {};
+    filteredData.items.forEach(item => {
+        const prod = products.find(p => String(p.product_id) === String(item.product_id));
+        const category = prod ? prod.product_category : 'Other'; 
+        grouped[category] = (grouped[category] || 0) + item.total_amount;
+    });
+    return { labels: Object.keys(grouped), datasets: [{ data: Object.values(grouped), backgroundColor: ['#8b5cf6', '#06b6d4', '#f43f5e', '#f59e0b', '#10b981'], borderWidth: 0 }] };
+  }, [filteredData]);
+
+  const barSpendData = useMemo(() => {
+    const grouped = {};
+    filteredData.items.forEach(item => {
+        const name = item.product_name || `Item #${item.product_id}`;
+        grouped[name] = (grouped[name] || 0) + item.total_amount;
+    });
+    const sorted = Object.entries(grouped).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    return {
+        labels: sorted.map(i => i[0].length > 15 ? i[0].substring(0,15)+'...' : i[0]),
+        datasets: [{ label: 'Spend', data: sorted.map(i => i[1]), backgroundColor: '#06b6d4', borderRadius: 4, barThickness: 15 }]
+    };
+  }, [filteredData]);
+
+  const barReturnData = useMemo(() => {
+    const grouped = {};
+    filteredData.returns.forEach(ret => {
+        const item = rawData.items.find(i => i.order_item_id === ret.order_item_id);
+        const name = item ? (item.product_name || 'Unknown') : 'Unknown';
+        grouped[name] = (grouped[name] || 0) + 1;
+    });
+    filteredData.orders.filter(o => o.order_status === 'Returned' || o.order_status === 'Return Requested').forEach(o => {
+        const items = filteredData.items.filter(i => i.order_id === o.order_id);
+        items.forEach(i => {
+             const name = i.product_name || 'Unknown';
+             grouped[name] = (grouped[name] || 0) + i.quantity;
+        });
+    });
+    const sorted = Object.entries(grouped).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    return {
+        labels: sorted.map(i => i[0].length > 15 ? i[0].substring(0,15)+'...' : i[0]),
+        datasets: [{ label: 'Returned Units', data: sorted.map(i => i[1]), backgroundColor: '#f43f5e', borderRadius: 4, barThickness: 15 }]
+    };
+  }, [filteredData, rawData.items]);
+
+  const horizontalChartOptions = {
+    indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+    scales: { x: { grid: { color: 'rgba(148, 163, 184, 0.05)' }, ticks: { color: '#94a3b8' } }, y: { grid: { display: false }, ticks: { color: '#e2e8f0' } } }
   };
 
   // --- RENDER ---
@@ -296,7 +391,6 @@ const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden">
       
-      {/* 6. TOAST CONTAINER (Essential for rendering) */}
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Background */}
@@ -305,23 +399,37 @@ const UserDashboard = () => {
       
       <div className="relative z-10 p-3 md:p-8 max-w-[1600px] mx-auto">
         <header className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 mb-8 md:mb-10 border-b border-slate-800/60 pb-6 md:pb-8">
-            <div className="space-y-3 w-full xl:w-auto">
-                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white">Welcome, <br className="md:hidden" /> {displayData.firstName}</h1>
-                <p className="text-slate-400">Overview: <span className="text-white font-semibold">{kpiActiveOrders} active orders</span>.</p>
+            <div className="space-y-3 w-full xl:w-auto flex justify-between items-center xl:block">
+                <div>
+                    <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white">Welcome, <br className="md:hidden" /> {displayData.firstName}</h1>
+                    <p className="text-slate-400">Overview: <span className="text-white font-semibold">{kpiActiveOrders} active orders</span>.</p>
+                </div>
+                {/* Mobile Notification Bell */}
+                <div className="xl:hidden">
+                    <NotificationsPanel userId={user?.uid} />
+                </div>
             </div>
-            {/* Tabs */}
-            <div className="w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 scrollbar-hide">
-                <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md min-w-max">
-                    {[
-                        { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-                        { id: 'orders', label: 'Orders', icon: ShoppingBag },
-                        { id: 'profile', label: 'Profile', icon: User },
-                        { id: 'payments', label: 'Payments', icon: CreditCard },
-                    ].map((tab) => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === tab.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
-                            <tab.icon size={16} /> {tab.label}
-                        </button>
-                    ))}
+            
+            <div className="flex items-center gap-4">
+                {/* Desktop Notification Bell */}
+                <div className="hidden xl:block">
+                    <NotificationsPanel userId={user?.uid} />
+                </div>
+
+                {/* Tabs */}
+                <div className="w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 scrollbar-hide">
+                    <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md min-w-max">
+                        {[
+                            { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                            { id: 'orders', label: 'Orders', icon: ShoppingBag },
+                            { id: 'profile', label: 'Profile', icon: User },
+                            { id: 'payments', label: 'Payments', icon: CreditCard },
+                        ].map((tab) => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === tab.id ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                                <tab.icon size={16} /> {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
         </header>
@@ -331,12 +439,12 @@ const UserDashboard = () => {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
                 <>
-                   {/* KPI Cards */}
-                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-8">
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5 mb-8">
                         {[
                             { title: 'Total Orders', value: kpiTotalOrders, icon: Package, color: 'text-violet-400', trendUp: true },
                             { title: 'Total Spend', value: formatRupees(kpiTotalSpend), icon: DollarSign, color: 'text-cyan-400', trendUp: true },
-                            { title: 'Returned', value: kpiReturnedOrders, icon: AlertCircle, color: 'text-rose-400', trendUp: false },
+                            { title: 'Returns/Reqs', value: kpiReturnedOrders, icon: AlertCircle, color: 'text-rose-400', trendUp: false },
                             { title: 'Active Orders', value: kpiActiveOrders, icon: TrendingUp, color: 'text-amber-400', trendUp: true },
                             { title: 'Avg Order Val', value: formatRupees(kpiAvgOrderValue), icon: Activity, color: 'text-emerald-400', trendUp: true },
                         ].map((kpi, idx) => (
@@ -401,23 +509,24 @@ const UserDashboard = () => {
                                         <td className="p-5 text-center">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border 
                                                 ${order.order_status === 'Processing' ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 
-                                                  order.order_status === 'Returned' || order.order_status === 'Cancelled' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                                                  'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                                order.order_status === 'Returned' || order.order_status === 'Cancelled' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                                                order.order_status === 'Return Requested' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                                'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                                                 {order.order_status}
                                             </span>
                                         </td>
                                         <td className="p-5 text-center">
                                             <button 
                                                 onClick={() => openReturnModal(order)}
-                                                disabled={['Returned', 'Cancelled'].includes(order.order_status)}
+                                                disabled={['Returned', 'Cancelled', 'Return Requested'].includes(order.order_status)}
                                                 className={`flex items-center justify-center gap-1 mx-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                                                    ${['Returned', 'Cancelled'].includes(order.order_status) 
+                                                    ${['Returned', 'Cancelled', 'Return Requested'].includes(order.order_status) 
                                                         ? 'opacity-50 cursor-not-allowed text-slate-500 bg-slate-800' 
                                                         : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/30'
                                                     }`}
                                             >
                                                 <CornerUpLeft size={14} /> 
-                                                {['Returned', 'Cancelled'].includes(order.order_status) ? 'Closed' : 'Return'}
+                                                {order.order_status === 'Return Requested' ? 'Requested' : ['Returned', 'Cancelled'].includes(order.order_status) ? 'Closed' : 'Return'}
                                             </button>
                                         </td>
                                     </tr>
@@ -432,7 +541,7 @@ const UserDashboard = () => {
             {/* PROFILE TAB */}
             {activeTab === 'profile' && (
                 <div className="max-w-5xl mx-auto bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-xl">
-                    <div className="h-24 md:h-32 bg-gradient-to-r from-violet-900 to-slate-900"></div>
+                   <div className="h-24 md:h-32 bg-gradient-to-r from-violet-900 to-slate-900"></div>
                     <div className="px-4 md:px-8 pb-8 relative">
                         <div className="flex flex-col md:flex-row items-center md:items-end gap-6 -mt-12 mb-8">
                             <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-slate-950 p-1.5 ring-4 ring-slate-800 shadow-2xl relative">
@@ -469,7 +578,7 @@ const UserDashboard = () => {
             {/* PAYMENTS TAB */}
             {activeTab === 'payments' && (
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-xl">
-                    <div className="p-6 border-b border-slate-800"><h3 className="text-lg font-bold text-white flex items-center gap-2"><CreditCard size={20} className="text-emerald-500"/> Payment History</h3></div>
+                   <div className="p-6 border-b border-slate-800"><h3 className="text-lg font-bold text-white flex items-center gap-2"><CreditCard size={20} className="text-emerald-500"/> Payment History</h3></div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -534,7 +643,7 @@ const UserDashboard = () => {
 
                 <div className="flex gap-3">
                     <button onClick={() => setReturnModalOpen(false)} className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-semibold hover:bg-slate-700">Cancel</button>
-                    <button onClick={handleReturnSubmit} className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-500 shadow-lg shadow-rose-500/20">Confirm Return</button>
+                    <button onClick={handleReturnSubmit} className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-500 shadow-lg shadow-rose-500/20">Submit Request</button>
                 </div>
             </div>
         </div>
