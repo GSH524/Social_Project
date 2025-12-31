@@ -26,7 +26,7 @@ const Login = () => {
   // Removed custom showToast state
 
   const navigate = useNavigate();
-
+const  Admin_email=import.meta.env.Admin_email;
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
     if (savedEmail) {
@@ -61,7 +61,7 @@ const Login = () => {
       });
 
       setTimeout(() => {
-        if (email === "harigudipati666@gmail.com") {
+        if (email === Admin_email) {
           navigate("/admindashboard");
         } else {
           navigate("/");
@@ -110,7 +110,7 @@ const Login = () => {
       });
 
       setTimeout(() => {
-        if (user.email === "harigudipati666@gmail.com") {
+        if (user.email === Admin_email) {
           navigate("/admindashboard");
         } else {
           navigate("/");

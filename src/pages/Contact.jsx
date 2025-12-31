@@ -86,7 +86,7 @@ export default function Contact() {
           <div className="space-y-6 md:space-y-8 mb-8 md:mb-10">
             {/* Contact Cards */}
             {[
-              { icon: Mail, title: "Email Us", text: "easystore@vajra.com" },
+              { icon: Mail, title: "Email Us", text: "easystore@gsh.com" },
               { icon: Phone, title: "Call Us", text: "+91 6303125585" },
               { icon: MapPin, title: "Visit Us", text: "Hyderabad, Telangana, India" }
             ].map((item, index) => (

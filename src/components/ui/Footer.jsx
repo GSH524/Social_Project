@@ -12,7 +12,7 @@ const Footer = () => {
     <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 relative overflow-hidden">
       
       {/* Top Gradient Line */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-blue-600 to-pink-500" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-white" />
 
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.2fr] gap-10 lg:gap-12 text-center sm:text-left">
