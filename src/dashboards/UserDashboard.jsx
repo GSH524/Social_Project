@@ -29,7 +29,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { 
   Loader, User, ShoppingBag, CreditCard, LayoutDashboard, 
   TrendingUp, Package, DollarSign, MapPin, Phone, 
-  AlertCircle, X, Bell, Check, Filter, Calendar, CheckCircle, ChevronRight, ShoppingCart, Star
+  AlertCircle, X, Bell, Check, Filter, Calendar, CheckCircle, ChevronRight, ShoppingCart, Star, Camera
 } from 'lucide-react';
 
 // --- CHART JS IMPORTS ---
@@ -417,10 +417,41 @@ const PaymentsTab = ({ orders }) => {
 //  SUB-COMPONENT: PROFILE TAB
 // ==========================================
 const ProfileTab = ({ displayData, handleProfileSave, isEditing, setIsEditing, editData, setEditData }) => {
+  
+  // Logic for image upload
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditData(prev => ({...prev, profileImage: reader.result}));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden animate-fade-in-up shadow-2xl">
       <div className="h-40 bg-gradient-to-r from-violet-800 to-indigo-900 relative">
-        <div className="absolute -bottom-12 left-6 md:left-8"><div className="w-24 h-24 rounded-full bg-slate-950 p-1 ring-4 ring-slate-900">{displayData.profileImage ? <img src={displayData.profileImage} className="w-full h-full rounded-full object-cover" alt="Profile"/> : <div className="w-full h-full bg-slate-800 flex items-center justify-center"><User size={32} className="text-slate-500"/></div>}</div></div>
+        <div className="absolute -bottom-12 left-6 md:left-8">
+            <div className="relative group w-24 h-24">
+                <div className="w-full h-full rounded-full bg-slate-950 p-1 ring-4 ring-slate-900 overflow-hidden">
+                    {(isEditing ? editData.profileImage : displayData.profileImage) ? (
+                        <img src={isEditing ? editData.profileImage : displayData.profileImage} className="w-full h-full rounded-full object-cover" alt="Profile"/>
+                    ) : (
+                        <div className="w-full h-full bg-slate-800 flex items-center justify-center"><User size={32} className="text-slate-500"/></div>
+                    )}
+                </div>
+                
+                {/* Camera Icon Overlay - Only when Editing */}
+                {isEditing && (
+                    <label className="absolute bottom-0 right-0 bg-violet-600 p-2 rounded-full cursor-pointer hover:bg-violet-500 shadow-lg border-2 border-slate-900 text-white transition-all transform hover:scale-110 active:scale-95">
+                        <Camera size={14}/>
+                        <input type="file" className="hidden" accept="image/*" onChange={handleImageChange}/>
+                    </label>
+                )}
+            </div>
+        </div>
       </div>
       <div className="pt-16 px-6 md:px-8 pb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
