@@ -41,23 +41,36 @@ const AdminNotificationPanel = ({ onUpdate }) => {
   const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
+    // Listen for ADMIN notifications in real-time
     const q = query(collection(db, "notifications"), where("type", "==", "admin"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Sort by newest first
       notes.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setNotifications(notes);
     });
     return () => unsubscribe();
   }, []);
 
-  const markAsRead = async (id) => { await deleteDoc(doc(db, "notifications", id)); };
+  const markAsRead = async (id) => { 
+    try {
+        await deleteDoc(doc(db, "notifications", id)); 
+    } catch(e) { console.error("Error clearing notification", e); }
+  };
 
   const handleAcceptReturn = async (notification) => {
     if(!notification.fullOrderId || !notification.senderId) return;
     setProcessingId(notification.id);
+
     try {
+        // 1. Update Order Status to "Returned" in Firestore
         const orderRef = doc(db, "OrderItems", notification.fullOrderId);
-        await updateDoc(orderRef, { orderStatus: "Returned", returnAcceptedAt: new Date() });
+        await updateDoc(orderRef, { 
+            orderStatus: "Returned", 
+            returnAcceptedAt: new Date() 
+        });
+
+        // 2. Notify User that return is accepted
         await addDoc(collection(db, "notifications"), {
             type: "user",
             recipientId: notification.senderId,
@@ -65,13 +78,22 @@ const AdminNotificationPanel = ({ onUpdate }) => {
             createdAt: serverTimestamp(),
             read: false
         });
+
+        // 3. Remove the admin notification
         await deleteDoc(doc(db, "notifications", notification.id));
-        if(onUpdate) onUpdate();
-        alert("Return Accepted and User Notified.");
+        
+        // 4. Trigger dashboard refresh & Wait for it to finish
+        if(onUpdate) {
+            await onUpdate(); 
+        }
+        
+        alert("Return Accepted. Order status updated.");
     } catch (error) {
         console.error("Error accepting return:", error);
+        alert("Failed to update order. Please check console.");
     } finally {
         setProcessingId(null);
+        setIsOpen(false); // Close dropdown on success
     }
   };
 
@@ -81,6 +103,7 @@ const AdminNotificationPanel = ({ onUpdate }) => {
         <Bell size={24} />
         {notifications.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border border-slate-900"></span>}
       </button>
+
       {isOpen && (
         <div className="absolute right-0 mt-2 w-96 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in-up">
           <div className="p-4 border-b border-slate-800 flex justify-between items-center">
@@ -94,17 +117,23 @@ const AdminNotificationPanel = ({ onUpdate }) => {
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex gap-2 items-center">
                         <div className="p-1 bg-amber-500/10 rounded text-amber-500"><AlertCircle size={14}/></div>
-                        <span className="text-xs font-bold text-white">{note.senderName}</span>
+                        <span className="text-xs font-bold text-white">{note.senderName || 'System'}</span>
                     </div>
                     <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400"><X size={14}/></button>
                   </div>
                   <p className="text-sm text-slate-300 mb-2">{note.message}</p>
+                  
+                  {/* Action Button for Returns */}
                   {note.fullOrderId && (
-                      <button onClick={() => handleAcceptReturn(note)} disabled={processingId === note.id} className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2">
+                      <button 
+                        onClick={() => handleAcceptReturn(note)} 
+                        disabled={processingId === note.id} 
+                        className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2"
+                      >
                           {processingId === note.id ? <Loader className="animate-spin" size={12}/> : "Accept Return"}
                       </button>
                   )}
-                  <p className="text-[10px] text-slate-500 mt-2 text-right">{note.createdAt?.toDate().toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-500 mt-2 text-right">{note.createdAt?.toDate ? note.createdAt.toDate().toLocaleString() : 'Just now'}</p>
                 </div>
               ))
             )}
@@ -141,14 +170,15 @@ const AdminDashboard = () => {
   const fetchAllData = useCallback(async () => {
     setLoadingData(true);
     try {
-      // Products
+      // 1. PRODUCTS
       const prodSnap = await getDocs(collection(db, "products"));
       const dbProds = prodSnap.docs.map(d => ({ ...d.data(), product_id: parseInt(d.id) || d.id }));
       const dbProdIds = new Set(dbProds.map(p => p.product_id));
       setProducts([...dbProds, ...initialProducts.filter(p => !dbProdIds.has(p.product_id))]);
 
-      // Orders
+      // 2. ORDERS (Static + Firebase Merge)
       const staticOrdersMap = {};
+      // Process Static Initial Orders
       if (initialOrderItems && initialOrderItems.length > 0) {
         initialOrderItems.forEach(item => {
           const oId = item.order_id;
@@ -169,6 +199,7 @@ const AdminDashboard = () => {
       }
       const calculatedStaticOrders = Object.values(staticOrdersMap);
 
+      // Process Live Firebase Orders
       const firebaseSnap = await getDocs(collection(db, "OrderItems"));
       const firebaseOrders = firebaseSnap.docs.map(d => {
         const data = d.data();
@@ -183,9 +214,10 @@ const AdminDashboard = () => {
         };
       });
 
+      // Combine and Sort
       setOrders([...calculatedStaticOrders, ...firebaseOrders].sort((a,b) => new Date(b.order_date) - new Date(a.order_date)));
 
-      // Customers
+      // 3. CUSTOMERS
       const custSnap = await getDocs(collection(db, "customers"));
       const dbCust = custSnap.docs.map(d => ({ ...d.data(), customer_id: parseInt(d.id) || d.id }));
       const userSnap = await getDocs(collection(db, "users"));
@@ -199,7 +231,7 @@ const AdminDashboard = () => {
       const existingIds = new Set([...dbCust, ...realUsers].map(c => c.customer_id));
       setCustomers([...realUsers, ...dbCust, ...initialCustomers.filter(c => !existingIds.has(c.customer_id))]);
 
-    } catch (err) { console.error(err); } finally { setLoadingData(false); }
+    } catch (err) { console.error("Error fetching data:", err); } finally { setLoadingData(false); }
   }, []);
 
   useEffect(() => {
@@ -411,7 +443,9 @@ const AdminDashboard = () => {
         </div>
 
         <div className="flex items-center gap-3 lg:gap-4">
+          {/* PASS FETCH FUNCTION TO NOTIFICATION PANEL */}
           <AdminNotificationPanel onUpdate={fetchAllData} />
+          
           <div className="h-8 w-px bg-white/10 mx-1 hidden sm:block"></div>
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setEditFormData(adminProfile); setShowProfileModal(true); }}>
             <div className="text-right hidden md:block">
@@ -655,7 +689,6 @@ const AdminDashboard = () => {
             )}
 
             {activeSection === 'products' && <AdminProducts initialProducts={products} onUpdate={fetchAllData} />}
-            {/* 🔹 CONFIRMED: Passing 'orders' (ALL) instead of 'filteredOrders' to the Orders Tab */}
             {activeSection === 'orders' && <AdminOrders initialOrders={orders} onUpdate={fetchAllData} />}
             {activeSection === 'customers' && <AdminCustomers initialCustomers={customers} onUpdate={fetchAllData} />}
             {activeSection === 'analytics' && <AdminAnalytics orders={filteredOrders} />}
