@@ -29,7 +29,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { 
   Loader, User, ShoppingBag, CreditCard, LayoutDashboard, 
   TrendingUp, Package, DollarSign, MapPin, Phone, 
-  AlertCircle, X, Bell, Check, Filter, Calendar, CheckCircle, ChevronRight, ShoppingCart
+  AlertCircle, X, Bell, Check, Filter, Calendar, CheckCircle, ChevronRight, ShoppingCart, Star
 } from 'lucide-react';
 
 // --- CHART JS IMPORTS ---
@@ -98,28 +98,52 @@ const NotificationsPanel = ({ userId }) => {
 };
 
 // ==========================================
-//  SUB-COMPONENT: FEATURED PRODUCTS (Top)
+//  SUB-COMPONENT: FEATURED PRODUCTS (Top Rated & Best Selling)
 // ==========================================
 const FeaturedProducts = ({ products, onAddToCart }) => {
+  
+  // Helper to render stars
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, i) => (
+      <Star 
+        key={i} 
+        size={10} 
+        className={`${i < Math.round(rating) ? "fill-yellow-400 text-yellow-400" : "text-slate-500"}`} 
+      />
+    ));
+  };
+
   return (
     <div className="mb-8 animate-fade-in-up">
       <div className="w-full bg-slate-900/40 border border-slate-800 rounded-2xl p-4 md:p-6 backdrop-blur-md shadow-xl relative overflow-hidden">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2"><Package size={20} className="text-violet-500"/> Featured Premium Products</h3>
+          <h3 className="text-lg font-bold text-white flex items-center gap-2"><Package size={20} className="text-violet-500"/> Top Rated & Best Selling</h3>
           <span className="text-xs text-slate-500 flex items-center gap-1">Swipe for more <ChevronRight size={12}/></span>
         </div>
         
         <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-violet-900/50 scrollbar-track-slate-900/0">
-          {products.slice(0, 10).map((prod) => (
+          {products.slice(0, 15).map((prod) => (
             <div key={prod.product_id} className="min-w-[200px] md:min-w-[240px] bg-slate-950/80 border border-slate-800 rounded-xl p-3 hover:border-violet-500/50 transition-all group hover:scale-[1.02] shadow-lg flex flex-col justify-between">
               <div>
                 <div className="h-32 md:h-40 bg-slate-900 rounded-lg mb-3 overflow-hidden relative">
                   <img src={prod.image_url} alt={prod.product_name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
-                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold text-white">${prod.selling_unit_price}</div>
+                  
+                  {/* Price Tag */}
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold text-emerald-400 border border-emerald-500/30">
+                    ${prod.selling_unit_price.toFixed(2)}
+                  </div>
+
+                  {/* Rating Overlay */}
+                  <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-2 py-1 rounded-full flex items-center gap-1 border border-white/10">
+                    <div className="flex">{renderStars(prod.product_rating || 0)}</div>
+                    <span className="text-[10px] text-slate-200 font-bold ml-1">({prod.product_rating})</span>
+                  </div>
                 </div>
-                <h4 className="text-sm font-semibold text-white truncate">{prod.product_name}</h4>
+
+                <h4 className="text-sm font-semibold text-white truncate" title={prod.product_name}>{prod.product_name}</h4>
                 <div className="flex justify-between items-center mt-2 mb-3">
-                  <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">{prod.product_category}</span>
+                  <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">{prod.product_category}</span>
+                  <span className="text-[10px] text-violet-400 font-medium">{prod.sales_count > 0 ? `${prod.sales_count} Sold` : 'New Arrival'}</span>
                 </div>
               </div>
               
@@ -138,7 +162,7 @@ const FeaturedProducts = ({ products, onAddToCart }) => {
 };
 
 // ==========================================
-//  SUB-COMPONENT: OVERVIEW TAB (Updated Charts)
+//  SUB-COMPONENT: OVERVIEW TAB
 // ==========================================
 const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths, yearsList, availableCategories }) => {
   const kpiTotalSpend = orders.filter(o => !['Cancelled', 'Returned'].includes(o.order_status)).reduce((acc, curr) => acc + curr.order_total_amount, 0);
@@ -431,6 +455,7 @@ const UserDashboard = () => {
   // Data State
   const [firebaseProfile, setFirebaseProfile] = useState(null);
   const [liveOrders, setLiveOrders] = useState([]); 
+  const [topProducts, setTopProducts] = useState([]); // State for Top Products
   
   // Filters
   const currentYear = new Date().getFullYear();
@@ -473,6 +498,36 @@ const UserDashboard = () => {
     init();
     return () => unsubscribeOrders();
   }, [user]);
+
+  // --- COMPUTE TOP PRODUCTS (Highest Rating & Sales) ---
+  useEffect(() => {
+    if (products.length > 0 && staticItems.length > 0) {
+        // 1. Calculate Sales Count per product
+        const productSales = {};
+        staticItems.forEach(item => {
+            productSales[item.product_id] = (productSales[item.product_id] || 0) + (item.ordered_quantity || 1);
+        });
+
+        // 2. Merge Sales Count into Products
+        const productsWithStats = products.map(p => ({
+            ...p,
+            sales_count: productSales[p.product_id] || 0
+        }));
+
+        // 3. Sort: First by Sales (Popularity), Then by Rating (Quality)
+        // Adjust weight as needed. Here, both are important.
+        const sortedProducts = productsWithStats.sort((a, b) => {
+            // Sort by sales desc
+            if (b.sales_count !== a.sales_count) {
+                return b.sales_count - a.sales_count;
+            }
+            // If sales equal, sort by rating desc
+            return (b.product_rating || 0) - (a.product_rating || 0);
+        });
+
+        setTopProducts(sortedProducts);
+    }
+  }, []);
 
   // --- DATA COMPUTATION ---
   const matchedCustomer = useMemo(() => user?.email ? customers.find(c => c.customer_email.toLowerCase() === user.email.toLowerCase()) : null, [user]);
@@ -586,7 +641,7 @@ const UserDashboard = () => {
             </div>
         </header>
 
-        {activeTab === 'overview' && <FeaturedProducts products={products} onAddToCart={handleAddToCart} />}
+        {activeTab === 'overview' && <FeaturedProducts products={topProducts} onAddToCart={handleAddToCart} />}
         
         {activeTab === 'overview' && (
            <OverviewTab 

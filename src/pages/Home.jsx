@@ -42,6 +42,17 @@ const Home = () => {
       ? products.slice(0, 8)
       : products.filter((p) => p.product_department === selectedCategory || p.product_category === selectedCategory).slice(0, 8);
 
+  // --- HELPER: RENDER STARS ---
+  const renderStars = (rating) => {
+    return [...Array(5)].map((_, i) => (
+      <FaStar 
+        key={i} 
+        size={10} 
+        className={`${i < Math.round(rating) ? "text-yellow-400" : "text-slate-600"}`} 
+      />
+    ));
+  };
+
   const handleAddToCart = (product) => {
     dispatch(addItem({
         product_id: product.product_id,
@@ -66,8 +77,6 @@ const Home = () => {
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-50 font-sans selection:bg-blue-500 selection:text-white overflow-x-hidden">
-      
-      {/* ... (Hero, Trust Bar, Category Filter Sections remain exactly the same) ... */}
       
       {/* --- HERO SECTION --- */}
       <section className="relative h-[80vh] md:h-[90vh] flex items-center justify-center text-center px-4">
@@ -117,14 +126,21 @@ const Home = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {filteredProducts.map((p) => (
             <div key={p.product_id} className="group bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2 flex flex-col">
+              
               {/* Image Container */}
               <div className="relative h-64 sm:h-72 overflow-hidden bg-slate-700">
                 <img src={getProductImage(p)} alt={p.product_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"; }} />
                 
+                {/* --- RATING BADGE --- */}
+                <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-white/10 z-10 shadow-lg">
+                  <div className="flex gap-0.5">{renderStars(p.product_rating || 0)}</div>
+                  <span className="text-[10px] font-bold text-slate-200 mt-0.5">({p.product_rating || 0})</span>
+                </div>
+
                 {/* Overlay Buy Button - HIDDEN IF ADMIN */}
                 {!isAdmin && (
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent flex items-end justify-center pb-6 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-                    <button onClick={() => handleBuyNow(p)} className="flex items-center gap-2 bg-white text-slate-900 px-6 py-2 rounded-full font-bold text-sm hover:bg-blue-500 hover:text-white transition-colors shadow-lg">
+                    <button onClick={() => handleBuyNow(p)} className="flex items-center gap-2 bg-white text-slate-900 px-6 py-2 rounded-full font-bold text-sm hover:bg-blue-500 hover:text-white transition-colors shadow-lg transform active:scale-95">
                       <FaBolt /> Buy Now
                     </button>
                   </div>
@@ -152,8 +168,12 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ... (Promo, Testimonials, Brands remain the same) ... */}
-       <section className="max-w-5xl mx-auto px-4 mb-24"> <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 border border-slate-700 p-8 md:p-16 text-center shadow-2xl"> <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-3xl rounded-full pointer-events-none"></div> <div className="relative z-10"> <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200"> Flat 20% OFF </h2> <p className="text-slate-300 text-base md:text-lg mb-8 max-w-xl mx-auto"> Upgrade your wardrobe today. Use code <strong className="text-white bg-slate-700/50 border border-slate-600 px-2 py-1 rounded mx-1">GSH20</strong> at checkout for exclusive savings on all accessories. </p> <button className="px-8 py-3 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300"> Claim Offer </button> </div> </div> </section> <section className="max-w-7xl mx-auto px-4 mb-24"> <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">What They Say</h2> <div className="grid grid-cols-1 md:grid-cols-3 gap-8"> {[1, 2, 3].map((i) => ( <div key={i} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 relative"> <FaQuoteLeft className="text-blue-500/20 text-4xl absolute top-6 left-6" /> <p className="text-slate-300 relative z-10 mb-6 mt-4"> "Absolutely love the quality. The dark aesthetic fits perfectly with my setup. Shipping was incredibly fast too!" </p> <div className="flex items-center gap-4"> <div className="w-10 h-10 bg-slate-600 rounded-full overflow-hidden"> <img src={`https://i.pravatar.cc/150?img=${i + 10}`} alt="User" /> </div> <div> <h5 className="font-bold text-white text-sm">Alex Johnson</h5> <div className="flex text-yellow-500 text-xs"> <FaStar /><FaStar /><FaStar /><FaStar /><FaStar /> </div> </div> </div> </div> ))} </div> </section> <section className="py-10 border-t border-slate-800"> <p className="text-center text-slate-500 text-sm tracking-[0.2em] font-bold mb-8 uppercase">Trusted By</p> <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500"> <img src="https://images-platform.99static.com//c60-ZrzNS_3CeTpUcVrHuXehJzo=/27x0:1034x1007/fit-in/500x500/99designs-contests-attachments/63/63177/attachment_63177734" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> <img src="https://img.freepik.com/free-vector/ecological-market-logo-design_23-2148468229.jpg" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRekbNCEfc1AZgGsQy6kjmeYR-HcwL5iqjzjg&s" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> <img src="https://cdn.dribbble.com/userupload/14791292/file/original-1ea2239ba9216548bf9d4a6006811db1.png?format=webp&resize=400x300&vertical=center" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> </div> </section>
+      {/* --- PROMO SECTION --- */}
+       <section className="max-w-5xl mx-auto px-4 mb-24"> <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 border border-slate-700 p-8 md:p-16 text-center shadow-2xl"> <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-3xl rounded-full pointer-events-none"></div> <div className="relative z-10"> <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200"> Flat 20% OFF </h2> <p className="text-slate-300 text-base md:text-lg mb-8 max-w-xl mx-auto"> Upgrade your wardrobe today. Use code <strong className="text-white bg-slate-700/50 border border-slate-600 px-2 py-1 rounded mx-1">GSH20</strong> at checkout for exclusive savings on all accessories. </p> <button className="px-8 py-3 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300"> Claim Offer </button> </div> </div> </section> 
+       
+       <section className="max-w-7xl mx-auto px-4 mb-24"> <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">What They Say</h2> <div className="grid grid-cols-1 md:grid-cols-3 gap-8"> {[1, 2, 3].map((i) => ( <div key={i} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 relative"> <FaQuoteLeft className="text-blue-500/20 text-4xl absolute top-6 left-6" /> <p className="text-slate-300 relative z-10 mb-6 mt-4"> "Absolutely love the quality. The dark aesthetic fits perfectly with my setup. Shipping was incredibly fast too!" </p> <div className="flex items-center gap-4"> <div className="w-10 h-10 bg-slate-600 rounded-full overflow-hidden"> <img src={`https://i.pravatar.cc/150?img=${i + 10}`} alt="User" /> </div> <div> <h5 className="font-bold text-white text-sm">Alex Johnson</h5> <div className="flex text-yellow-500 text-xs"> <FaStar /><FaStar /><FaStar /><FaStar /><FaStar /> </div> </div> </div> </div> ))} </div> </section> 
+       
+       <section className="py-10 border-t border-slate-800"> <p className="text-center text-slate-500 text-sm tracking-[0.2em] font-bold mb-8 uppercase">Trusted By</p> <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500"> <img src="https://images-platform.99static.com//c60-ZrzNS_3CeTpUcVrHuXehJzo=/27x0:1034x1007/fit-in/500x500/99designs-contests-attachments/63/63177/attachment_63177734" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> <img src="https://img.freepik.com/free-vector/ecological-market-logo-design_23-2148468229.jpg" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRekbNCEfc1AZgGsQy6kjmeYR-HcwL5iqjzjg&s" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> <img src="https://cdn.dribbble.com/userupload/14791292/file/original-1ea2239ba9216548bf9d4a6006811db1.png?format=webp&resize=400x300&vertical=center" alt="Brand" className="h-12 w-auto object-contain bg-white/10 rounded-lg p-1" /> </div> </section>
     </main>
   );
 };

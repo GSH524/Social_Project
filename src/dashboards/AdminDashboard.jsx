@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Line, Pie, Bar } from 'react-chartjs-2';
-import { 
-  Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, 
-  PointElement, ArcElement, Title, Tooltip, Legend, Filler 
+import { Line, Pie, Bar, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement,
+  PointElement, ArcElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
-import { 
-  LayoutDashboard, ShoppingBag, Users, Package, Settings, FileText, 
+import {
+  LayoutDashboard, ShoppingBag, Users, Package, Settings, FileText,
   BarChart2, Menu, X, User, Camera, Loader, Calendar, Bell, AlertCircle
 } from 'lucide-react';
-import { auth, db } from "../firebase"; 
+import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc, collection, getDocs, onSnapshot, query, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 
 // Static Data Utils
-import { 
-  customers as initialCustomers, 
-  products as initialProducts, 
-  orderItems as initialOrderItems 
+import {
+  customers as initialCustomers,
+  products as initialProducts,
+  orderItems as initialOrderItems,
+  orders as initialStaticOrders,
+  payments as initialPayments,
+  shippments as initialShipments,
+  orderReturns as initialReturns
 } from "../data/dataUtils.js";
 
 // Components
@@ -34,28 +38,25 @@ ChartJS.defaults.color = '#94a3b8';
 ChartJS.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
 ChartJS.defaults.font.family = "'Inter', sans-serif";
 
-// --- SUB-COMPONENT: ADMIN NOTIFICATION BELL ---
+// --- SUB-COMPONENT: ADMIN NOTIFICATION PANEL ---
 const AdminNotificationPanel = ({ onUpdate }) => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
-    // Listen for ADMIN notifications in real-time
     const q = query(collection(db, "notifications"), where("type", "==", "admin"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort by newest first
       notes.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setNotifications(notes);
     });
     return () => unsubscribe();
   }, []);
 
-  const markAsRead = async (id) => { 
-    try {
-        await deleteDoc(doc(db, "notifications", id)); 
-    } catch(e) { console.error("Error clearing notification", e); }
+  const markAsRead = async (id) => {
+    try { await deleteDoc(doc(db, "notifications", id)); }
+    catch(e) { console.error("Error clearing notification", e); }
   };
 
   const handleAcceptReturn = async (notification) => {
@@ -63,14 +64,9 @@ const AdminNotificationPanel = ({ onUpdate }) => {
     setProcessingId(notification.id);
 
     try {
-        // 1. Update Order Status to "Returned" in Firestore
         const orderRef = doc(db, "OrderItems", notification.fullOrderId);
-        await updateDoc(orderRef, { 
-            orderStatus: "Returned", 
-            returnAcceptedAt: new Date() 
-        });
+        await updateDoc(orderRef, { orderStatus: "Returned", returnAcceptedAt: new Date() });
 
-        // 2. Notify User that return is accepted
         await addDoc(collection(db, "notifications"), {
             type: "user",
             recipientId: notification.senderId,
@@ -79,21 +75,17 @@ const AdminNotificationPanel = ({ onUpdate }) => {
             read: false
         });
 
-        // 3. Remove the admin notification
         await deleteDoc(doc(db, "notifications", notification.id));
-        
-        // 4. Trigger dashboard refresh & Wait for it to finish
-        if(onUpdate) {
-            await onUpdate(); 
-        }
-        
+
+        if(onUpdate) await onUpdate();
+
         alert("Return Accepted. Order status updated.");
     } catch (error) {
         console.error("Error accepting return:", error);
-        alert("Failed to update order. Please check console.");
+        alert("Failed to update order.");
     } finally {
         setProcessingId(null);
-        setIsOpen(false); // Close dropdown on success
+        setIsOpen(false);
     }
   };
 
@@ -122,12 +114,10 @@ const AdminNotificationPanel = ({ onUpdate }) => {
                     <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400"><X size={14}/></button>
                   </div>
                   <p className="text-sm text-slate-300 mb-2">{note.message}</p>
-                  
-                  {/* Action Button for Returns */}
                   {note.fullOrderId && (
-                      <button 
-                        onClick={() => handleAcceptReturn(note)} 
-                        disabled={processingId === note.id} 
+                      <button
+                        onClick={() => handleAcceptReturn(note)}
+                        disabled={processingId === note.id}
                         className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2"
                       >
                           {processingId === note.id ? <Loader className="animate-spin" size={12}/> : "Accept Return"}
@@ -149,20 +139,20 @@ const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   // --- FILTER STATE ---
-  const currentYear = new Date().getFullYear().toString();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(''); 
-  const [selectedWeek, setSelectedWeek] = useState(''); 
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedWeek, setSelectedWeek] = useState('');
+  const [selectedDay, setSelectedDay] = useState('');
 
   // Data State
   const [adminProfile, setAdminProfile] = useState({ firstName: '', lastName: '', email: '', role: 'Admin', profileImage: '' });
   const [editFormData, setEditFormData] = useState({});
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  
+
   const [products, setProducts] = useState(initialProducts);
-  const [orders, setOrders] = useState([]); 
+  const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState(initialCustomers);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -170,66 +160,90 @@ const AdminDashboard = () => {
   const fetchAllData = useCallback(async () => {
     setLoadingData(true);
     try {
-      // 1. PRODUCTS
+      // 1. Customers
+      const custSnap = await getDocs(collection(db, "customers"));
+      const dbCust = custSnap.docs.map(d => ({ ...d.data(), customer_id: parseInt(d.id) || d.id }));
+      const userSnap = await getDocs(collection(db, "users"));
+      const realUsers = userSnap.docs.map(d => ({
+        customer_id: d.id,
+        customer_full_name: `${d.data().firstName || ''} ${d.data().lastName || ''}`.trim() || 'Unknown User',
+        customer_email: d.data().email,
+        customer_image_url: d.data().profileImage,
+        customer_city: d.data().city,
+        customer_country: d.data().country,
+        customer_created_date: d.data().createdAt?.toDate ? d.data().createdAt.toDate().toLocaleDateString() : 'N/A',
+        customer_is_active: true,
+        type: 'User'
+      }));
+      const existingIds = new Set([...dbCust, ...realUsers].map(c => c.customer_id));
+      const allCustomers = [...realUsers, ...dbCust, ...initialCustomers.filter(c => !existingIds.has(c.customer_id))];
+      setCustomers(allCustomers);
+
+      const customerNameMap = {};
+      allCustomers.forEach(c => { customerNameMap[c.customer_id] = c.customer_full_name || `Customer ${c.customer_id}`; });
+
+      // 2. Products
       const prodSnap = await getDocs(collection(db, "products"));
       const dbProds = prodSnap.docs.map(d => ({ ...d.data(), product_id: parseInt(d.id) || d.id }));
       const dbProdIds = new Set(dbProds.map(p => p.product_id));
       setProducts([...dbProds, ...initialProducts.filter(p => !dbProdIds.has(p.product_id))]);
 
-      // 2. ORDERS (Static + Firebase Merge)
-      const staticOrdersMap = {};
-      // Process Static Initial Orders
+      // 3. Orders
+      const staticOrderUserMap = {};
+      if(initialStaticOrders) {
+          initialStaticOrders.forEach(o => { staticOrderUserMap[o.order_id] = o.customer_id; });
+      }
+
+      const staticOrdersAggregation = {};
       if (initialOrderItems && initialOrderItems.length > 0) {
         initialOrderItems.forEach(item => {
           const oId = item.order_id;
-          if (!staticOrdersMap[oId]) {
-            staticOrdersMap[oId] = {
+          if (!staticOrdersAggregation[oId]) {
+            let realCustId = staticOrderUserMap[oId];
+            if (!realCustId && allCustomers.length > 0) {
+                const index = oId % allCustomers.length;
+                realCustId = allCustomers[index].customer_id;
+            }
+            const custName = customerNameMap[realCustId] || `Customer ${realCustId || oId}`;
+            const originalOrder = initialStaticOrders.find(o => o.order_id === oId);
+            const orderDate = originalOrder ? originalOrder.order_created_date : new Date().toISOString();
+
+            staticOrdersAggregation[oId] = {
               order_id: oId,
-              order_date: new Date(2023, 9 + Math.floor(Math.random() * 3), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
-              customer_id: `Demo-User-${oId % 100}`, 
+              order_date: new Date(orderDate).toISOString().split('T')[0],
+              customer_id: custName,
               order_status: item.is_returned ? "Returned" : "Delivered",
               order_total_amount: 0,
               payment_status: "Paid",
-              isFirebase: false
+              isFirebase: false,
+              payment_method: "Credit Card"
             };
+            const payment = initialPayments.find(p => p.order_id === oId);
+            if (payment) staticOrdersAggregation[oId].payment_method = payment.payment_method;
           }
-          staticOrdersMap[oId].order_total_amount += (item.total_amount || 0);
-          if (item.is_returned) staticOrdersMap[oId].order_status = "Returned";
+          staticOrdersAggregation[oId].order_total_amount += (item.total_amount || 0);
+          if (item.is_returned) staticOrdersAggregation[oId].order_status = "Returned";
         });
       }
-      const calculatedStaticOrders = Object.values(staticOrdersMap);
+      const calculatedStaticOrders = Object.values(staticOrdersAggregation);
 
-      // Process Live Firebase Orders
       const firebaseSnap = await getDocs(collection(db, "OrderItems"));
       const firebaseOrders = firebaseSnap.docs.map(d => {
         const data = d.data();
+        const custName = customerNameMap[data.userId] || data.email || 'Guest';
         return {
-          order_id: d.id, 
+          order_id: d.id,
           order_date: data.createdAt?.toDate ? data.createdAt.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           order_status: data.orderStatus || 'Pending',
           order_total_amount: Number(data.totalAmount) || 0,
-          customer_id: data.userId || data.email || 'Guest',
+          customer_id: custName,
           payment_status: data.paymentStatus || 'Paid',
-          isFirebase: true
+          isFirebase: true,
+          payment_method: data.paymentMethod || 'Unknown'
         };
       });
 
-      // Combine and Sort
       setOrders([...calculatedStaticOrders, ...firebaseOrders].sort((a,b) => new Date(b.order_date) - new Date(a.order_date)));
-
-      // 3. CUSTOMERS
-      const custSnap = await getDocs(collection(db, "customers"));
-      const dbCust = custSnap.docs.map(d => ({ ...d.data(), customer_id: parseInt(d.id) || d.id }));
-      const userSnap = await getDocs(collection(db, "users"));
-      const realUsers = userSnap.docs.map(d => ({
-        customer_id: d.id, customer_full_name: `${d.data().firstName || ''} ${d.data().lastName || ''}`,
-        customer_email: d.data().email, customer_image_url: d.data().profileImage,
-        customer_city: d.data().city, customer_country: d.data().country,
-        customer_created_date: d.data().createdAt?.toDate ? d.data().createdAt.toDate().toLocaleDateString() : 'N/A',
-        customer_is_active: true, type: 'User'
-      }));
-      const existingIds = new Set([...dbCust, ...realUsers].map(c => c.customer_id));
-      setCustomers([...realUsers, ...dbCust, ...initialCustomers.filter(c => !existingIds.has(c.customer_id))]);
 
     } catch (err) { console.error("Error fetching data:", err); } finally { setLoadingData(false); }
   }, []);
@@ -264,131 +278,113 @@ const AdminDashboard = () => {
         const d = new Date(o.order_date);
         const yearMatch = selectedYear ? d.getFullYear().toString() === selectedYear : true;
         const monthMatch = selectedMonth ? (d.getMonth() + 1).toString().padStart(2, '0') === selectedMonth : true;
-        
-        // Week calculation: Approximation (Day / 7) rounded up.
         const weekMatch = selectedWeek ? Math.ceil(d.getDate() / 7).toString() === selectedWeek : true;
-
-        return yearMatch && monthMatch && weekMatch;
+        const dayMatch = selectedDay ? d.getDate().toString() === selectedDay : true;
+        return yearMatch && monthMatch && weekMatch && dayMatch;
     });
-  }, [orders, selectedYear, selectedMonth, selectedWeek]);
+  }, [orders, selectedYear, selectedMonth, selectedWeek, selectedDay]);
 
-  // 1. KPI Data
   const totalRevenue = filteredOrders
     .filter(o => o.order_status !== "Cancelled" && o.order_status !== "Returned")
     .reduce((sum, o) => sum + (Number(o.order_total_amount) || 0), 0);
-  
-  const netRevenue = totalRevenue; 
-  const profit = netRevenue * 0.35; 
+  const netRevenue = totalRevenue;
+  const profit = netRevenue * 0.35;
   const totalOrders = filteredOrders.length;
   const returnedOrders = filteredOrders.filter(o => o.order_status === "Returned").length;
   const returnRate = totalOrders > 0 ? ((returnedOrders / totalOrders) * 100).toFixed(2) : 0;
 
-  // 2. Chart Data Generation
+  // --- CHART DATA GENERATION ---
   const visualData = useMemo(() => {
-    // A. Trend Data (Orders vs Returns)
     let labels = [];
+    let revenueData = [];
     let ordersData = [];
-    let returnsData = [];
-    
-    // B. Sales by Category (Pie)
-    const categoryCount = {};
-    
-    // C. Top Customers
-    const customerSpends = {};
+    const paymentMethodRevenue = {};
+    const categoryRevenue = {};
 
-    // --- Processing Loop ---
-    const year = parseInt(selectedYear);
-    const month = parseInt(selectedMonth);
+    const year = selectedYear ? parseInt(selectedYear) : new Date().getFullYear();
+    const month = selectedMonth ? parseInt(selectedMonth) : new Date().getMonth() + 1;
 
-    // Dynamic Labels based on Filter Selection
+    // A. Trend Logic
     if (selectedMonth) {
         const daysInMonth = new Date(year, month, 0).getDate();
-
         if (selectedWeek) {
-             // === WEEKLY VIEW (Zoomed in on specific days) ===
              const weekNum = parseInt(selectedWeek);
-             // Calculate start and end date of that week (1-7, 8-14, etc.)
              const startDay = (weekNum - 1) * 7 + 1;
              const endDay = Math.min(startDay + 6, daysInMonth);
-             
-             // Generate labels for just this week range
              labels = Array.from({length: (endDay - startDay + 1)}, (_, i) => `${startDay + i}`);
+             revenueData = new Array(labels.length).fill(0);
              ordersData = new Array(labels.length).fill(0);
-             returnsData = new Array(labels.length).fill(0);
-
              filteredOrders.forEach(o => {
                  const d = new Date(o.order_date);
-                 const day = d.getDate();
-                 // Map the day to the array index (0-6)
-                 const idx = day - startDay;
-                 if (idx >= 0 && idx < ordersData.length) {
+                 const idx = d.getDate() - startDay;
+                 if (idx >= 0 && idx < revenueData.length) {
                     ordersData[idx] += 1;
-                    if(o.order_status === 'Returned') returnsData[idx] += 1;
+                    if (o.order_status !== 'Returned' && o.order_status !== 'Cancelled') revenueData[idx] += Number(o.order_total_amount);
                  }
-                 customerSpends[o.customer_id] = (customerSpends[o.customer_id] || 0) + Number(o.order_total_amount);
              });
-
+        } else if (selectedDay) {
+             labels = [`${selectedMonth}/${selectedDay}`];
+             ordersData = [filteredOrders.length];
+             revenueData = [filteredOrders.filter(o => o.order_status !== 'Returned' && o.order_status !== 'Cancelled').reduce((sum, o) => sum + Number(o.order_total_amount), 0)];
         } else {
-             // === DAILY VIEW (Whole Month) ===
              labels = Array.from({length: daysInMonth}, (_, i) => `${i + 1}`);
+             revenueData = new Array(daysInMonth).fill(0);
              ordersData = new Array(daysInMonth).fill(0);
-             returnsData = new Array(daysInMonth).fill(0);
-
              filteredOrders.forEach(o => {
-                const d = new Date(o.order_date);
-                const day = d.getDate();
+                const day = new Date(o.order_date).getDate();
                 ordersData[day - 1] += 1;
-                if(o.order_status === 'Returned') returnsData[day - 1] += 1;
-                customerSpends[o.customer_id] = (customerSpends[o.customer_id] || 0) + Number(o.order_total_amount);
+                if (o.order_status !== 'Returned' && o.order_status !== 'Cancelled') revenueData[day - 1] += Number(o.order_total_amount);
              });
         }
     } else {
-        // === MONTHLY VIEW (Whole Year) ===
         labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        revenueData = new Array(12).fill(0);
         ordersData = new Array(12).fill(0);
-        returnsData = new Array(12).fill(0);
-
         filteredOrders.forEach(o => {
-           const d = new Date(o.order_date);
-           const mIdx = d.getMonth();
+           const mIdx = new Date(o.order_date).getMonth();
            ordersData[mIdx] += 1;
-           if(o.order_status === 'Returned') returnsData[mIdx] += 1;
-           customerSpends[o.customer_id] = (customerSpends[o.customer_id] || 0) + Number(o.order_total_amount);
+           if (o.order_status !== 'Returned' && o.order_status !== 'Cancelled') revenueData[mIdx] += Number(o.order_total_amount);
         });
     }
 
-    // Populate Category Data from Products
-    products.forEach(p => {
-        const cat = p.product_category || 'Other';
-        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+    // B. Aggregations (Optimized)
+    const validOrderIds = new Set(filteredOrders
+        .filter(o => o.order_status !== 'Returned' && o.order_status !== 'Cancelled')
+        .map(o => o.order_id));
+
+    // Payment Method
+    filteredOrders.forEach(o => {
+        if (validOrderIds.has(o.order_id)) {
+            const pm = o.payment_method || 'Unknown';
+            paymentMethodRevenue[pm] = (paymentMethodRevenue[pm] || 0) + Number(o.order_total_amount);
+        }
     });
 
-    const topCustomers = Object.entries(customerSpends).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    // Product Category
+    const productMap = new Map(products.map(p => [p.product_id, p.product_category || 'Other']));
+    initialOrderItems.forEach(item => {
+        if (validOrderIds.has(item.order_id)) {
+            const cat = productMap.get(item.product_id) || 'Other';
+            categoryRevenue[cat] = (categoryRevenue[cat] || 0) + Number(item.total_amount);
+        }
+    });
 
-    const topProducts = products
-        .slice(0, 5) 
-        .map(p => ({
-            name: p.product_name,
-            revenue: (p.selling_unit_price * (Math.floor(Math.random() * 50) + 10)) 
-        }))
-        .sort((a,b) => b.revenue - a.revenue);
+    const sortedCategories = Object.entries(categoryRevenue)
+        .sort((a, b) => b[1] - a[1]) 
+        .slice(0, 6); 
 
     return {
-        trend: { labels, orders: ordersData, returns: returnsData },
-        category: {
-            labels: Object.keys(categoryCount).slice(0, 6),
-            data: Object.values(categoryCount).slice(0, 6)
+        trend: { labels, revenue: revenueData, orders: ordersData },
+        paymentMethod: {
+            labels: Object.keys(paymentMethodRevenue),
+            data: Object.values(paymentMethodRevenue)
         },
-        topCust: {
-            labels: topCustomers.map(c => c[0]),
-            data: topCustomers.map(c => c[1])
-        },
-        topProd: {
-            labels: topProducts.map(p => p.name.substring(0, 15) + '...'),
-            data: topProducts.map(p => p.revenue)
+        categoryRevenue: {
+            labels: sortedCategories.map(c => c[0]),
+            data: sortedCategories.map(c => c[1])
         }
     };
-  }, [filteredOrders, selectedYear, selectedMonth, selectedWeek, products]);
+  }, [filteredOrders, selectedYear, selectedMonth, selectedWeek, selectedDay, products]);
 
 
   // Helper for Dropdown Options
@@ -401,7 +397,8 @@ const AdminDashboard = () => {
     { value: '09', label: 'September' }, { value: '10', label: 'October' },
     { value: '11', label: 'November' }, { value: '12', label: 'December' }
   ];
-  const weeks = [1, 2, 3, 4, 5]; // Weeks in a month
+  const weeks = [1, 2, 3, 4, 5]; 
+  const days = Array.from({length: 31}, (_, i) => i + 1);
 
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -415,7 +412,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] w-full font-sans text-slate-200 bg-[#0f172a] selection:bg-cyan-500/30 relative">
-      
+
       {/* --- ADMIN TOOLBAR --- */}
       <nav className="h-20 bg-[#1e293b]/50 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 lg:px-10 shrink-0 relative z-20">
         <div className="flex items-center gap-4">
@@ -431,8 +428,8 @@ const AdminDashboard = () => {
               key={item.id}
               onClick={() => setActiveSection(item.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 text-sm font-medium ${
-                activeSection === item.id 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                activeSection === item.id
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
@@ -443,9 +440,8 @@ const AdminDashboard = () => {
         </div>
 
         <div className="flex items-center gap-3 lg:gap-4">
-          {/* PASS FETCH FUNCTION TO NOTIFICATION PANEL */}
           <AdminNotificationPanel onUpdate={fetchAllData} />
-          
+
           <div className="h-8 w-px bg-white/10 mx-1 hidden sm:block"></div>
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setEditFormData(adminProfile); setShowProfileModal(true); }}>
             <div className="text-right hidden md:block">
@@ -485,43 +481,46 @@ const AdminDashboard = () => {
           <div className="max-w-[1600px] mx-auto">
             {activeSection === 'dashboard' && (
               <div className="space-y-6 animate-fade-in-up">
-                
+
                 {/* --- TOP BAR: Title & Filter --- */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                   <div>
                     <h1 className="text-2xl font-bold text-white tracking-tight">Executive Overview</h1>
                     <p className="text-slate-400 text-sm">
-                        {selectedWeek 
-                         ? `Week ${selectedWeek} breakdown` 
-                         : (selectedMonth ? `Daily breakdown for ${months.find(m=>m.value===selectedMonth)?.label}` : `Monthly breakdown for ${selectedYear}`)}
+                        {selectedDay
+                          ? `Daily breakdown for ${selectedMonth}/${selectedDay}/${selectedYear}`
+                          : (selectedWeek
+                            ? `Week ${selectedWeek} breakdown`
+                            : (selectedMonth ? `Daily breakdown for ${months.find(m=>m.value===selectedMonth)?.label}`
+                            : (selectedYear ? `Monthly breakdown for ${selectedYear}` : "All-Time Overview")))}
                     </p>
                   </div>
-                  
+
                   {/* Filters */}
                   <div className="flex gap-2 bg-[#1e293b] p-1.5 rounded-lg border border-white/5 shadow-sm items-center">
-                      <select 
-                        value={selectedYear} onChange={(e) => { setSelectedYear(e.target.value); setSelectedMonth(''); setSelectedWeek(''); }}
+                      <select
+                        value={selectedYear} onChange={(e) => { setSelectedYear(e.target.value); setSelectedMonth(''); setSelectedWeek(''); setSelectedDay(''); }}
                         className="bg-transparent text-white text-xs font-medium px-2 py-1 outline-none cursor-pointer [&>option]:bg-slate-900"
                       >
-                         {years.map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                      
-                      <div className="w-px bg-white/10 h-4 mx-1"></div>
-                      
-                      <select 
-                        value={selectedMonth} onChange={(e) => { setSelectedMonth(e.target.value); setSelectedWeek(''); }}
-                        className="bg-transparent text-white text-xs font-medium px-2 py-1 outline-none cursor-pointer [&>option]:bg-slate-900"
-                      >
-                         <option value="">Full Year</option>
-                         {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                          <option value="">All Years</option>
+                          {years.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
 
-                      {/* Week Filter - Only visible if Month is selected */}
+                      <div className="w-px bg-white/10 h-4 mx-1"></div>
+
+                      <select
+                        value={selectedMonth} onChange={(e) => { setSelectedMonth(e.target.value); setSelectedWeek(''); setSelectedDay(''); }}
+                        className="bg-transparent text-white text-xs font-medium px-2 py-1 outline-none cursor-pointer [&>option]:bg-slate-900"
+                      >
+                          <option value="">All Months</option>
+                          {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      </select>
+
                       {selectedMonth && (
                           <>
                              <div className="w-px bg-white/10 h-4 mx-1"></div>
-                             <select 
-                                value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)}
+                             <select
+                                value={selectedWeek} onChange={(e) => { setSelectedWeek(e.target.value); setSelectedDay(''); }}
                                 className="bg-transparent text-white text-xs font-medium px-2 py-1 outline-none cursor-pointer [&>option]:bg-slate-900"
                              >
                                 <option value="">All Weeks</option>
@@ -530,8 +529,21 @@ const AdminDashboard = () => {
                           </>
                       )}
 
-                      {(selectedMonth || selectedYear !== currentYear) && (
-                          <button onClick={()=>{setSelectedYear(currentYear); setSelectedMonth(''); setSelectedWeek('');}} className="text-[10px] text-slate-500 hover:text-white px-2 border-l border-white/10 ml-1">Reset</button>
+                       {selectedMonth && (
+                           <>
+                              <div className="w-px bg-white/10 h-4 mx-1"></div>
+                              <select
+                                 value={selectedDay} onChange={(e) => { setSelectedDay(e.target.value); setSelectedWeek(''); }}
+                                 className="bg-transparent text-white text-xs font-medium px-2 py-1 outline-none cursor-pointer [&>option]:bg-slate-900"
+                              >
+                                 <option value="">All Days</option>
+                                 {days.map(d => <option key={d} value={d}>{d}</option>)}
+                              </select>
+                           </>
+                       )}
+
+                      {(selectedMonth || selectedYear) && (
+                          <button onClick={()=>{setSelectedYear(''); setSelectedMonth(''); setSelectedWeek(''); setSelectedDay('');}} className="text-[10px] text-slate-500 hover:text-white px-2 border-l border-white/10 ml-1">Reset</button>
                       )}
                   </div>
                 </div>
@@ -554,143 +566,279 @@ const AdminDashboard = () => {
                   ))}
                 </div>
 
-                {/* --- ROW 2: MAIN LINE CHART (Orders vs Returns) --- */}
-                <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-2 h-2 rounded-full bg-cyan-400"></div> <span className="text-cyan-400 text-xs font-bold">Total Orders</span>
-                    <div className="w-2 h-2 rounded-full bg-rose-500 ml-4"></div> <span className="text-rose-500 text-xs font-bold">Total Returns</span>
-                  </div>
-                  <div className="h-64 w-full">
-                    <Line 
-                      data={{ 
-                        labels: visualData.trend.labels, 
-                        datasets: [
-                          { 
-                            label: 'Total Orders', 
-                            data: visualData.trend.orders, 
-                            borderColor: '#22d3ee', // Cyan
-                            borderWidth: 2,
-                            backgroundColor: 'transparent', 
-                            tension: 0.4, 
-                            pointRadius: 2,
-                            pointHoverRadius: 4
+                {/* --- ROW 2: TWO MAIN TREND CHARTS --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* 1. NET REVENUE TREND */}
+                  <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <h4 className="text-slate-300 text-sm font-bold">Net Revenue Trend</h4>
+                      <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></div>
+                          <span className="text-emerald-400 text-xs font-bold">Net Revenue (₹)</span>
+                      </div>
+                    </div>
+                    <div className="h-72 w-full relative z-10">
+                      <Line
+                        data={{
+                          labels: visualData.trend.labels,
+                          datasets: [{
+                              label: 'Net Revenue',
+                              data: visualData.trend.revenue,
+                              borderColor: '#34d399', // Emerald
+                              borderWidth: 3,
+                              backgroundColor: (context) => {
+                                const ctx = context.chart.ctx;
+                                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, 'rgba(52, 211, 153, 0.3)');
+                                gradient.addColorStop(1, 'rgba(52, 211, 153, 0)');
+                                return gradient;
+                              },
+                              fill: true,
+                              tension: 0.4,
+                              pointRadius: 4,
+                              pointHoverRadius: 6,
+                              pointBackgroundColor: '#34d399',
+                              pointBorderColor: '#0f172a',
+                              pointBorderWidth: 2,
+                            }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          interaction: { mode: 'index', intersect: false },
+                          plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            tooltip: {
+                              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                              titleColor: '#fff',
+                              bodyColor: '#94a3b8',
+                              borderColor: 'rgba(255, 255, 255, 0.1)',
+                              borderWidth: 1,
+                              padding: 10,
+                              boxPadding: 4,
+                              usePointStyle: true,
+                            }
                           },
-                          { 
-                            label: 'Total Returns', 
-                            data: visualData.trend.returns, 
-                            borderColor: '#f43f5e', // Rose
-                            borderWidth: 2,
-                            backgroundColor: 'transparent', 
-                            tension: 0.4, 
-                            pointRadius: 2,
-                            pointHoverRadius: 4
-                          } 
-                        ] 
-                      }} 
-                      options={{ 
-                        responsive: true, 
-                        maintainAspectRatio: false, 
-                        plugins: { legend: { display: false }, title: { display: true, text: 'Orders vs Returns Trend', color: '#94a3b8', padding: {bottom: 20} } }, 
-                        scales: { 
-                          y: { grid: { display: false }, ticks: { color: '#64748b', font: {size: 10} } }, 
-                          x: { grid: { display: false }, ticks: { color: '#64748b', font: {size: 10}, maxTicksLimit: 12 } } 
-                        } 
-                      }} 
-                    />
+                          scales: {
+                            y: {
+                              grid: { color: 'rgba(255, 255, 255, 0.05)', borderDash: [5, 5] },
+                              ticks: { color: '#64748b', font: {size: 10}, padding: 10, callback: (val) => '₹' + val/1000 + 'k' }
+                            },
+                            x: {
+                              grid: { display: false },
+                              ticks: { color: '#64748b', font: {size: 10}, maxTicksLimit: 12, padding: 10 }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0f172a] to-transparent pointer-events-none"></div>
                   </div>
+
+                  {/* 2. ORDERS TREND */}
+                  <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4 relative z-10">
+                      <h4 className="text-slate-300 text-sm font-bold">Total Orders Trend</h4>
+                      <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div>
+                          <span className="text-blue-400 text-xs font-bold">Total Orders</span>
+                      </div>
+                    </div>
+                    <div className="h-72 w-full relative z-10">
+                      <Line
+                        data={{
+                          labels: visualData.trend.labels,
+                          datasets: [{
+                              label: 'Total Orders',
+                              data: visualData.trend.orders,
+                              borderColor: '#60a5fa', // Blue
+                              borderWidth: 3,
+                              backgroundColor: (context) => {
+                                const ctx = context.chart.ctx;
+                                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                                gradient.addColorStop(0, 'rgba(96, 165, 250, 0.3)');
+                                gradient.addColorStop(1, 'rgba(96, 165, 250, 0)');
+                                return gradient;
+                              },
+                              fill: true,
+                              tension: 0.4,
+                              pointRadius: 4,
+                              pointHoverRadius: 6,
+                              pointBackgroundColor: '#60a5fa',
+                              pointBorderColor: '#0f172a',
+                              pointBorderWidth: 2,
+                            }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          interaction: { mode: 'index', intersect: false },
+                          plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            tooltip: {
+                              backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                              titleColor: '#fff',
+                              bodyColor: '#94a3b8',
+                              borderColor: 'rgba(255, 255, 255, 0.1)',
+                              borderWidth: 1,
+                              padding: 10,
+                              boxPadding: 4,
+                              usePointStyle: true,
+                            }
+                          },
+                          scales: {
+                            y: {
+                              grid: { color: 'rgba(255, 255, 255, 0.05)', borderDash: [5, 5] },
+                              ticks: { color: '#64748b', font: {size: 10}, padding: 10 }
+                            },
+                            x: {
+                              grid: { display: false },
+                              ticks: { color: '#64748b', font: {size: 10}, maxTicksLimit: 12, padding: 10 }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#0f172a] to-transparent pointer-events-none"></div>
+                  </div>
+
                 </div>
 
-                {/* --- ROW 3: THREE COLUMNS (Pie, Bar, Bar) --- */}
+                {/* --- ROW 3: THREE COLUMNS (Donut, Bar) --- */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    {/* 1. PIE CHART */}
-                    <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl">
-                        <h4 className="text-center text-slate-300 text-sm font-bold mb-4">Sales by Product Category</h4>
-                        <div className="h-48 flex justify-center relative">
-                            <Pie 
-                                data={{ 
-                                    labels: visualData.category.labels, 
-                                    datasets: [{ 
-                                        data: visualData.category.data, 
-                                        backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#d946ef', '#f43f5e', '#f59e0b'], 
-                                        borderWidth: 0 
-                                    }] 
-                                }} 
-                                options={{ 
+
+                    {/* 1. DONUT CHART: NET REVENUE BY PAYMENT METHOD */}
+                    <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl relative overflow-hidden lg:col-span-1">
+                        <h4 className="text-center text-slate-300 text-sm font-bold mb-4 relative z-10">Net Revenue by Payment Method</h4>
+                        <div className="h-64 flex justify-center relative z-10">
+                            <Doughnut
+                                data={{
+                                    labels: visualData.paymentMethod.labels,
+                                    datasets: [{
+                                        data: visualData.paymentMethod.data,
+                                        backgroundColor: ['#3b82f6', '#06b6d4', '#8b5cf6', '#d946ef', '#f43f5e'],
+                                        borderWidth: 2,
+                                        borderColor: '#0f172a',
+                                        hoverBorderWidth: 4,
+                                    }]
+                                }}
+                                options={{
                                     maintainAspectRatio: false,
-                                    plugins: { 
-                                        legend: { position: 'right', labels: { color: '#94a3b8', usePointStyle: true, boxWidth: 8, font: {size: 10} } } 
-                                    } 
-                                }} 
+                                    cutout: '70%',
+                                    plugins: {
+                                        legend: {
+                                          position: 'right',
+                                          labels: {
+                                            color: '#94a3b8',
+                                            usePointStyle: true,
+                                            pointStyle: 'circle',
+                                            boxWidth: 8,
+                                            font: {size: 11},
+                                            padding: 15
+                                          }
+                                        },
+                                        tooltip: {
+                                          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                          bodyColor: '#fff',
+                                          borderColor: 'rgba(255, 255, 255, 0.1)',
+                                          borderWidth: 1,
+                                          padding: 10,
+                                          boxPadding: 4,
+                                          usePointStyle: true,
+                                          callbacks: {
+                                            label: function(context) {
+                                                const label = context.label || '';
+                                                const value = context.parsed || 0;
+                                                return `${label}: ₹${(value/1000).toFixed(1)}k`;
+                                            }
+                                          }
+                                        }
+                                    }
+                                }}
                             />
                         </div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 pointer-events-none"></div>
                     </div>
 
-                    {/* 2. BAR CHART: TOP PRODUCTS */}
-                    <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl">
-                         <h4 className="text-center text-slate-300 text-sm font-bold mb-2">Top 5 Products by Revenue</h4>
-                         <div className="h-48 w-full">
+                    {/* 2. BAR CHART: NET REVENUE BY PRODUCT CATEGORY (Sorted & Horizontal) */}
+                    <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl relative overflow-hidden lg:col-span-2">
+                          <h4 className="text-center text-slate-300 text-sm font-bold mb-4 relative z-10">Net Revenue by Product Category</h4>
+                          <div className="h-64 w-full relative z-10">
                             <Bar
                                 data={{
-                                    labels: visualData.topProd.labels,
+                                    labels: visualData.categoryRevenue.labels,
                                     datasets: [{
-                                        label: 'Revenue',
-                                        data: visualData.topProd.data,
-                                        backgroundColor: '#3b82f6', // Blue bars
-                                        barThickness: 15,
-                                        borderRadius: 2
+                                        label: 'Net Revenue',
+                                        data: visualData.categoryRevenue.data,
+                                        backgroundColor: (context) => {
+                                          const ctx = context.chart.ctx;
+                                          const gradient = ctx.createLinearGradient(0, 0, 300, 0);
+                                          gradient.addColorStop(0, '#3b82f6');
+                                          gradient.addColorStop(1, '#06b6d4');
+                                          return gradient;
+                                        },
+                                        barThickness: 20,
+                                        borderRadius: 8,
+                                        borderSkipped: false,
                                     }]
                                 }}
                                 options={{
-                                    indexAxis: 'y', // Horizontal Bar
+                                    indexAxis: 'y', // Horizontal Layout
                                     responsive: true,
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { display: false } },
+                                    plugins: {
+                                      legend: { display: false },
+                                      tooltip: {
+                                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                        titleColor: '#fff',
+                                        bodyColor: '#94a3b8',
+                                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                                        borderWidth: 1,
+                                        padding: 10,
+                                        boxPadding: 4,
+                                        callbacks: {
+                                            label: (context) => `Revenue: ₹${(context.parsed.x/1000).toFixed(1)}k`
+                                        }
+                                      }
+                                    },
                                     scales: {
                                         x: { display: false },
-                                        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: {size: 10} } }
+                                        y: {
+                                          grid: { display: false },
+                                          ticks: {
+                                            color: '#94a3b8',
+                                            font: {size: 11, weight: '500'},
+                                            padding: 8,
+                                            crossAlign: 'far',
+                                          }
+                                        }
                                     }
                                 }}
                             />
                          </div>
-                    </div>
-
-                    {/* 3. BAR CHART: TOP CUSTOMERS */}
-                    <div className="bg-[#1e293b] border border-blue-900/20 rounded-xl p-5 shadow-xl">
-                         <h4 className="text-center text-slate-300 text-sm font-bold mb-2">Top 5 Customers by Revenue</h4>
-                         <div className="h-48 w-full">
-                            <Bar
-                                data={{
-                                    labels: visualData.topCust.labels,
-                                    datasets: [{
-                                        label: 'Spend',
-                                        data: visualData.topCust.data,
-                                        backgroundColor: '#3b82f6', // Blue bars
-                                        barThickness: 15,
-                                        borderRadius: 2
-                                    }]
-                                }}
-                                options={{
-                                    indexAxis: 'y', // Horizontal Bar
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: { legend: { display: false } },
-                                    scales: {
-                                        x: { display: false },
-                                        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: {size: 10} } }
-                                    }
-                                }}
-                            />
-                         </div>
+                         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 pointer-events-none"></div>
                     </div>
 
                 </div>
               </div>
             )}
 
-            {activeSection === 'products' && <AdminProducts initialProducts={products} onUpdate={fetchAllData} />}
+            {/* --- UPDATED: PASSING FULL PROPS TO SUB-COMPONENTS --- */}
+            {activeSection === 'products' && (
+                <AdminProducts
+                    initialProducts={products}
+                    orders={orders}
+                    orderItems={initialOrderItems}
+                    payments={initialPayments}
+                    onUpdate={fetchAllData}
+                />
+            )}
+
             {activeSection === 'orders' && <AdminOrders initialOrders={orders} onUpdate={fetchAllData} />}
-            {activeSection === 'customers' && <AdminCustomers initialCustomers={customers} onUpdate={fetchAllData} />}
+            {activeSection === 'customers' && <AdminCustomers initialCustomers={customers} orders={orders} onUpdate={fetchAllData} />}
             {activeSection === 'analytics' && <AdminAnalytics orders={filteredOrders} />}
             {activeSection === 'reports' && <AdminReports orders={filteredOrders} products={products} customers={customers} />}
             {activeSection === 'settings' && <AdminSettings />}
