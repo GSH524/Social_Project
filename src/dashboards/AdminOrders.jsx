@@ -28,12 +28,12 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
       // 1. Update status in Firestore
       await updateDoc(doc(db, "OrderItems", String(id)), { orderStatus: newStatus });
       
-      // 2. 🔹 NEW: Send Notification to User
+      // 2. 🔹 NEW: Send Notification to User (SHOWING FULL ORDER ID)
       if (customerId) {
         await addDoc(collection(db, "notifications"), {
             type: "user", // Targeted at User
             recipientId: customerId, // The User's UID
-            message: `Your Order #${String(id).substring(0, 8)}... status has been updated to: ${newStatus}`,
+            message: `Your Order #${String(id)} status has been updated to: ${newStatus}`, // Changed: Removed substring to show full ID
             createdAt: serverTimestamp(),
             read: false
         });
@@ -122,8 +122,9 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
                 filteredOrders.map(o => (
                   <tr key={o.order_id} className="hover:bg-slate-800/30 transition-all group">
                     <td className="p-5">
-                      <span className="text-violet-400 font-mono font-bold text-xs">
-                        #{String(o.order_id).substring(0, 8)}...
+                      <span className="text-violet-400 font-mono font-bold text-xs select-all">
+                        {/* Changed: Removed substring to show full ID */}
+                        #{String(o.order_id)}
                       </span>
                     </td>
                     <td className="p-5">
@@ -206,5 +207,5 @@ const AdminOrders = ({ initialOrders, onUpdate }) => {
     </div>
   );
 };
- 
+
 export default AdminOrders;
