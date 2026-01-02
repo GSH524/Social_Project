@@ -125,7 +125,7 @@ const AdminDashboard = () => {
   const currentYear = new Date().getFullYear().toString();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(''); 
-  const [selectedWeek, setSelectedWeek] = useState(''); // NEW: Week Filter
+  const [selectedWeek, setSelectedWeek] = useState(''); 
 
   // Data State
   const [adminProfile, setAdminProfile] = useState({ firstName: '', lastName: '', email: '', role: 'Admin', profileImage: '' });
@@ -655,6 +655,7 @@ const AdminDashboard = () => {
             )}
 
             {activeSection === 'products' && <AdminProducts initialProducts={products} onUpdate={fetchAllData} />}
+            {/* 🔹 CONFIRMED: Passing 'orders' (ALL) instead of 'filteredOrders' to the Orders Tab */}
             {activeSection === 'orders' && <AdminOrders initialOrders={orders} onUpdate={fetchAllData} />}
             {activeSection === 'customers' && <AdminCustomers initialCustomers={customers} onUpdate={fetchAllData} />}
             {activeSection === 'analytics' && <AdminAnalytics orders={filteredOrders} />}
