@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, X, Tag, Loader, DollarSign, Package, TrendingUp, PieChart as PieIcon, Activity, ShoppingCart, Filter } from 'lucide-react';
+import { 
+  Search, Plus, Edit, Trash2, X, Tag, Loader, DollarSign, 
+  Package, TrendingUp, Filter 
+} from 'lucide-react';
 import { db } from "../firebase";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
@@ -10,6 +13,106 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, BarElement, ArcElement);
 
+// --- COMPONENT: PRODUCT CARD ---
+const ProductCard = ({ product, onEdit, onDelete }) => {
+  // Safe calculation for display
+  const price = Number(product.selling_unit_price) || 0;
+  const cost = Number(product.cost_unit_price) || 0;
+  const margin = price - cost;
+  const marginPercent = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
+
+  return (
+    <div className="group relative bg-[#0f172a] border border-white/5 rounded-2xl overflow-hidden shadow-lg hover:shadow-violet-500/10 hover:border-violet-500/30 transition-all duration-300 flex flex-col h-full">
+      
+      {/* Image Section */}
+      <div className="relative w-full h-48 bg-black/40 overflow-hidden">
+        {product.image_url ? (
+          <img 
+            src={product.image_url} 
+            alt={product.product_name} 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-600">
+            <Package size={40} strokeWidth={1.5} />
+            <span className="text-xs mt-2">No Image</span>
+          </div>
+        )}
+        
+        {/* Status Badge */}
+        <div className="absolute top-3 right-3">
+          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border shadow-sm ${
+            product.is_product_active 
+              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
+              : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+          }`}>
+            {product.is_product_active ? 'Active' : 'Hidden'}
+          </span>
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="p-5 flex flex-col flex-grow">
+        <div className="mb-3">
+            <div className="flex justify-between items-start">
+                <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">
+                    {product.product_brand || 'No Brand'}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                    <Tag size={10} />
+                    {product.product_category}
+                </div>
+            </div>
+            <h3 className="text-white font-bold text-lg leading-tight line-clamp-2" title={product.product_name}>
+                {product.product_name}
+            </h3>
+        </div>
+
+        {/* Financial Grid */}
+        <div className="mt-auto grid grid-cols-2 gap-2 bg-white/5 rounded-xl p-3 border border-white/5">
+            <div>
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Price</p>
+                <p className="text-emerald-400 font-bold text-lg">₹{price}</p>
+            </div>
+            <div className="text-right">
+                <p className="text-[10px] text-slate-500 uppercase font-bold">Profit</p>
+                <div className="flex items-center justify-end gap-1 text-cyan-400 font-bold">
+                    <span>₹{margin.toFixed(2)}</span>
+                    <TrendingUp size={12} />
+                </div>
+            </div>
+            
+            <div className="col-span-2 h-px bg-white/10 my-1"></div>
+            
+            <div className="flex justify-between items-center col-span-2">
+                <p className="text-[10px] text-slate-400">Cost: <span className="text-slate-300">₹{cost}</span></p>
+                <p className="text-[10px] text-slate-400">Margin: <span className={`${Number(marginPercent) > 20 ? 'text-emerald-400' : 'text-orange-400'}`}>{marginPercent}%</span></p>
+            </div>
+        </div>
+      </div>
+
+      {/* Actions (Hover Reveal) */}
+      <div className="absolute top-3 left-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-[-10px] group-hover:translate-y-0">
+        <button 
+          onClick={() => onEdit(product)} 
+          className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 shadow-lg shadow-blue-900/50 transition-colors"
+          title="Edit"
+        >
+          <Edit size={16} />
+        </button>
+        <button 
+          onClick={() => onDelete(product.product_id)} 
+          className="p-2 bg-rose-600 text-white rounded-lg hover:bg-rose-500 shadow-lg shadow-rose-900/50 transition-colors"
+          title="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT: ADMIN PRODUCTS ---
 const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], payments = [], onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -29,10 +132,10 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
   });
 
   // ==================================================================================
-  // 1. STRICT ANALYTICS ENGINE (Business Logic Implementation)
+  // 1. ANALYTICS ENGINE
   // ==================================================================================
   const analytics = useMemo(() => {
-    // A. DATA MAPPING (Efficient Lookups)
+    // A. DATA MAPPING
     const productMap = new Map();
     initialProducts.forEach(p => {
         productMap.set(String(p.product_id), {
@@ -62,7 +165,7 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
     const validOrderIds = new Set();
     
     let totalQtySold = 0;
-    let productRevenue = 0; // Fixed: Variable renamed to match return object
+    let productRevenue = 0; 
     let totalProfit = 0;
 
     const productPerf = {};  
@@ -103,7 +206,7 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
 
         // Aggregates
         totalQtySold += qty;
-        productRevenue += revenue; // Fixed: using productRevenue
+        productRevenue += revenue; 
         totalProfit += profit;
         
         validProductIds.add(prodId);
@@ -120,7 +223,7 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
         categoryPerf[product.category] = (categoryPerf[product.category] || 0) + revenue;
     });
 
-    // D. FORMAT DATA
+    // D. FORMAT DATA FOR CHARTS
     const topProfitProducts = Object.values(productPerf).sort((a, b) => b.profit - a.profit).slice(0, 10);
     const topRevenueProducts = Object.values(productPerf).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
     const sortedBrands = Object.entries(brandPerf).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -131,7 +234,7 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
             totalProductsSold: validProductIds.size, 
             totalQtySold, 
             totalOrders: validOrderIds.size, 
-            productRevenue, // This was the cause of the error
+            productRevenue, 
             totalProfit 
         },
         charts: {
@@ -179,12 +282,13 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
     setFormData(u);
   };
 
-  const years = ['2022', '2023', '2024', '2025', '2026'];
+  const years = ['2019', '2020', '2021', '2022', '2023','2024','2025','2026'];
   const months = Array.from({length: 12}, (_, i) => (i + 1).toString());
-  const weeks = ['1', '2', '3', '4', '5'];
+  const weeks = ['1', '2', '3', '4'];
 
   return (
     <div className="space-y-6 animate-fade-in-up pb-10">
+      <h1 className="text-2xl font-bold text-white tracking-tight">Products In GSH STORE</h1>
       
       {/* --- FILTERS --- */}
       <div className="flex flex-col sm:flex-row justify-end items-center gap-3 bg-[#0c2543] p-3 rounded-2xl border border-[#163a66] shadow-sm">
@@ -195,8 +299,8 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
           {(filterYear || filterMonth || filterWeek) && <button onClick={()=>{setFilterYear(''); setFilterMonth(''); setFilterWeek('');}} className="text-xs text-rose-400 hover:text-white font-bold px-2">Clear</button>}
       </div>
 
-      {/* --- KPI CARDS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* --- KPI CARDS (Aligned in One Line: lg:grid-cols-5) --- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="bg-[#0c2543] p-5 rounded-3xl border border-[#163a66] shadow-lg flex flex-col justify-center relative overflow-hidden">
               <h4 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-1">Total Products Sold</h4>
               <p className="text-2xl font-bold text-white">{analytics.kpis.totalProductsSold}</p>
@@ -220,7 +324,7 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
           </div>
       </div>
 
-      {/* --- CHARTS --- */}
+      {/* --- CHARTS SECTION --- */}
       <div className="bg-[#0c2543] p-6 rounded-3xl border border-[#163a66] shadow-lg">
           <h4 className="text-sm font-bold text-white mb-4 uppercase text-center">Top 10 Products by Profit</h4>
           <div className="h-64 w-full"><Line data={{ labels: analytics.charts.topProfit.labels, datasets: [{ label: 'Total Profit (₹)', data: analytics.charts.topProfit.data, borderColor: '#3b82f6', backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 3 }] }} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }, x: { grid: { display: false }, ticks: { color: '#94a3b8', font: {size: 10} } } } }} /></div>
@@ -232,7 +336,7 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
           <div className="bg-[#0c2543] p-5 rounded-3xl border border-[#163a66] shadow-lg"><h4 className="text-xs font-bold text-white mb-4 uppercase text-center">Revenue by Product Category</h4><div className="h-48 w-full"><Bar data={{ labels: analytics.charts.categories.labels, datasets: [{ label: 'Revenue', data: analytics.charts.categories.data, backgroundColor: '#3b82f6', borderRadius: 4, barThickness: 15 }] }} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', callback: (val) => val/1000 + 'k' } }, y: { grid: { display: false }, ticks: { color: '#fff', font: {size: 10} } } } }} /></div></div>
       </div>
 
-      {/* --- INVENTORY LIST --- */}
+      {/* --- INVENTORY LIST: SEARCH & GRID --- */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white/5 p-4 md:p-6 rounded-3xl border border-white/5 backdrop-blur-md mt-6">
         <h2 className="text-2xl font-bold text-white px-2">Inventory List</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex gap-3 w-full lg:w-auto">
@@ -242,15 +346,28 @@ const AdminProducts = ({ initialProducts = [], orders = [], orderItems = [], pay
         </div>
       </div>
 
-      <div className="bg-white/5 border border-white/5 rounded-3xl overflow-hidden backdrop-blur-md shadow-2xl">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-white/10">
-          <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead><tr className="border-b border-white/5 text-slate-400 text-xs uppercase tracking-widest bg-white/5"><th className="p-5">Product Info</th><th className="p-5">Category</th><th className="p-5">Pricing</th><th className="p-5">Status</th><th className="p-5 text-right">Actions</th></tr></thead>
-            <tbody className="divide-y divide-white/5">{filtered.map(p => (<tr key={p.product_id} className="hover:bg-white/5 transition-colors group"><td className="p-5"><div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 overflow-hidden flex-shrink-0 relative">{p.image_url ? (<img src={p.image_url} className="w-full h-full object-cover" alt={p.product_name}/>) : (<Tag className="m-auto mt-3 text-slate-600"/>)}</div><div className="max-w-[200px]"><p className="font-semibold text-white truncate group-hover:text-violet-300 transition-colors">{p.product_name}</p><p className="text-xs text-slate-500 uppercase">{p.product_brand}</p></div></div></td><td className="p-5 text-sm text-slate-400">{p.product_category}</td><td className="p-5"><p className="font-bold text-emerald-400">₹{p.selling_unit_price}</p><p className="text-[10px] text-slate-500">Cost: ₹{p.cost_unit_price}</p></td><td className="p-5"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter border ${p.is_product_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>{p.is_product_active ? 'Active' : 'Hidden'}</span></td><td className="p-5 text-right space-x-2"><button onClick={()=>{setCurrentProduct(p); setFormData(p); setIsModalOpen(true)}} className="text-blue-400 p-2 hover:bg-blue-500/10 rounded-lg transition-colors"><Edit size={18}/></button><button onClick={()=>handleDelete(p.product_id)} className="text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-colors"><Trash2 size={18}/></button></td></tr>))}</tbody>
-          </table>
+      {/* --- PRODUCT GRID (Replaces Table) --- */}
+      {filtered.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filtered.map(product => (
+            <ProductCard 
+              key={product.product_id} 
+              product={product} 
+              onEdit={(p) => { setCurrentProduct(p); setFormData(p); setIsModalOpen(true); }}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
-      </div>
+      ) : (
+        /* Empty State */
+        <div className="py-20 text-center bg-white/5 rounded-3xl border border-white/5">
+            <Package className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-white text-lg font-bold">No Products Found</h3>
+            <p className="text-slate-400 text-sm">Try adjusting your search or filters.</p>
+        </div>
+      )}
 
+      {/* --- MODAL FORM --- */}
       {isModalOpen && (<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"><div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]"><div className="p-6 border-b border-white/5 flex justify-between items-center"><h3 className="text-xl font-bold text-white">{currentProduct ? 'Edit Product' : 'New Product'}</h3><button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white bg-white/5 p-2 rounded-full transition-colors"><X size={20}/></button></div><form onSubmit={handleSave} className="p-6 overflow-y-auto space-y-6 scrollbar-hide"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="space-y-2"><label className="text-xs text-slate-400 ml-1">Product Name</label><input name="product_name" placeholder="Enter name..." value={formData.product_name || ''} onChange={handleInputChange} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/></div><div className="flex items-end pb-1"><label className="flex items-center gap-3 cursor-pointer bg-black/20 p-3 rounded-xl border border-white/10 w-full"><input type="checkbox" name="is_product_active" checked={formData.is_product_active} onChange={handleInputChange} className="w-5 h-5 accent-violet-600"/><span className="text-slate-300 text-sm font-medium">Product Active</span></label></div></div><div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><div className="space-y-2"><label className="text-xs text-slate-400 ml-1">Brand</label><input name="product_brand" placeholder="Brand" value={formData.product_brand || ''} onChange={handleInputChange} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/></div><div className="space-y-2"><label className="text-xs text-slate-400 ml-1">Category</label><input name="product_category" placeholder="Category" value={formData.product_category || ''} onChange={handleInputChange} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none" required/></div><div className="space-y-2"><label className="text-xs text-slate-400 ml-1">Department</label><select name="product_department" value={formData.product_department || 'Unisex'} onChange={handleInputChange} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white outline-none"><option value="Unisex" className="bg-slate-900">Unisex</option><option value="Men" className="bg-slate-900">Men</option><option value="Women" className="bg-slate-900">Women</option><option value="Kids" className="bg-slate-900">Kids</option></select></div></div><div className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-4"><div className="flex items-center gap-2 text-violet-400 font-bold text-sm uppercase tracking-widest"><DollarSign size={16}/> Pricing & Financials</div><div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div className="space-y-1"><label className="text-[10px] text-slate-500 uppercase font-bold">Sale Price (₹)</label><input name="selling_unit_price" type="number" step="0.01" value={formData.selling_unit_price} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-emerald-400 font-bold focus:border-emerald-500 outline-none" required/></div><div className="space-y-1"><label className="text-[10px] text-slate-500 uppercase font-bold">Cost Price (₹)</label><input name="cost_unit_price" type="number" step="0.01" value={formData.cost_unit_price} onChange={handleInputChange} className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-rose-400 font-bold focus:border-rose-500 outline-none" required/></div><div className="space-y-1"><label className="text-[10px] text-slate-500 uppercase font-bold">Net Margin</label><div className={`p-2.5 rounded-xl bg-black/20 font-mono text-center border border-white/5 ${formData.product_margin >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{formData.product_margin}</div></div><div className="space-y-1"><label className="text-[10px] text-slate-500 uppercase font-bold">Margin %</label><div className={`p-2.5 rounded-xl bg-black/20 font-mono text-center border border-white/5 ${formData.product_margin_percent >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{(formData.product_margin_percent * 100).toFixed(1)}%</div></div></div></div><div className="space-y-2"><label className="text-xs text-slate-400 ml-1">Product Media URL</label><input name="image_url" placeholder="Paste image link here..." value={formData.image_url || ''} onChange={handleInputChange} className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none"/></div><div className="space-y-2"><label className="text-xs text-slate-400 ml-1">Product Description</label><textarea name="product_short_description" placeholder="Technical specifications or details..." value={formData.product_short_description || ''} onChange={handleInputChange} rows="3" className="w-full bg-black/20 border border-white/10 rounded-xl p-3 text-white focus:border-violet-500 outline-none resize-none"/></div><div className="pt-2"><button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98]">{saving ? <Loader className="animate-spin m-auto" size={24}/> : 'Complete Update'}</button></div></form></div></div>)}
     </div>
   );

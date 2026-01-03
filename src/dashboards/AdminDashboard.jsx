@@ -347,25 +347,29 @@ const AdminDashboard = () => {
         });
     }
 
-    // B. Aggregations (Optimized)
+    // B. Aggregations (Fixed: Filtering out Unknowns)
     const validOrderIds = new Set(filteredOrders
         .filter(o => o.order_status !== 'Returned' && o.order_status !== 'Cancelled')
         .map(o => o.order_id));
 
-    // Payment Method
+    // Payment Method (FIXED HERE)
     filteredOrders.forEach(o => {
         if (validOrderIds.has(o.order_id)) {
-            const pm = o.payment_method || 'Unknown';
-            paymentMethodRevenue[pm] = (paymentMethodRevenue[pm] || 0) + Number(o.order_total_amount);
+            const pm = o.payment_method;
+            if (pm && pm !== 'Unknown') { // Exclude unknown methods
+                paymentMethodRevenue[pm] = (paymentMethodRevenue[pm] || 0) + Number(o.order_total_amount);
+            }
         }
     });
 
-    // Product Category
+    // Product Category (FIXED HERE)
     const productMap = new Map(products.map(p => [p.product_id, p.product_category || 'Other']));
     initialOrderItems.forEach(item => {
         if (validOrderIds.has(item.order_id)) {
-            const cat = productMap.get(item.product_id) || 'Other';
-            categoryRevenue[cat] = (categoryRevenue[cat] || 0) + Number(item.total_amount);
+            const cat = productMap.get(item.product_id);
+            if (cat && cat !== 'Other' && cat !== 'Unknown') { // Exclude 'Other' and 'Unknown'
+                categoryRevenue[cat] = (categoryRevenue[cat] || 0) + Number(item.total_amount);
+            }
         }
     });
 
@@ -388,7 +392,7 @@ const AdminDashboard = () => {
 
 
   // Helper for Dropdown Options
-  const years = [2022, 2023, 2024, 2025, 2026];
+  const years = [2019, 2020, 2021, 2022, 2023,2024,2025,2026];
   const months = [
     { value: '01', label: 'January' }, { value: '02', label: 'February' },
     { value: '03', label: 'March' }, { value: '04', label: 'April' },
@@ -397,7 +401,7 @@ const AdminDashboard = () => {
     { value: '09', label: 'September' }, { value: '10', label: 'October' },
     { value: '11', label: 'November' }, { value: '12', label: 'December' }
   ];
-  const weeks = [1, 2, 3, 4, 5]; 
+  const weeks = [1, 2, 3, 4]; 
   const days = Array.from({length: 31}, (_, i) => i + 1);
 
   const navItems = [
@@ -485,6 +489,7 @@ const AdminDashboard = () => {
                 {/* --- TOP BAR: Title & Filter --- */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                   <div>
+                    <h1 className="text-2xl font-bold text-white tracking-tight">GSH Store Premium Collection</h1>
                     <h1 className="text-2xl font-bold text-white tracking-tight">Executive Overview</h1>
                     <p className="text-slate-400 text-sm">
                         {selectedDay
@@ -529,7 +534,7 @@ const AdminDashboard = () => {
                           </>
                       )}
 
-                       {selectedMonth && (
+                        {selectedMonth && (
                            <>
                               <div className="w-px bg-white/10 h-4 mx-1"></div>
                               <select
@@ -540,7 +545,7 @@ const AdminDashboard = () => {
                                  {days.map(d => <option key={d} value={d}>{d}</option>)}
                               </select>
                            </>
-                       )}
+                        )}
 
                       {(selectedMonth || selectedYear) && (
                           <button onClick={()=>{setSelectedYear(''); setSelectedMonth(''); setSelectedWeek(''); setSelectedDay('');}} className="text-[10px] text-slate-500 hover:text-white px-2 border-l border-white/10 ml-1">Reset</button>
@@ -730,31 +735,31 @@ const AdminDashboard = () => {
                                     cutout: '70%',
                                     plugins: {
                                         legend: {
-                                          position: 'right',
-                                          labels: {
-                                            color: '#94a3b8',
-                                            usePointStyle: true,
-                                            pointStyle: 'circle',
-                                            boxWidth: 8,
-                                            font: {size: 11},
-                                            padding: 15
-                                          }
+                                            position: 'right',
+                                            labels: {
+                                                color: '#94a3b8',
+                                                usePointStyle: true,
+                                                pointStyle: 'circle',
+                                                boxWidth: 8,
+                                                font: {size: 11},
+                                                padding: 15
+                                            }
                                         },
                                         tooltip: {
-                                          backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                                          bodyColor: '#fff',
-                                          borderColor: 'rgba(255, 255, 255, 0.1)',
-                                          borderWidth: 1,
-                                          padding: 10,
-                                          boxPadding: 4,
-                                          usePointStyle: true,
-                                          callbacks: {
-                                            label: function(context) {
-                                                const label = context.label || '';
-                                                const value = context.parsed || 0;
-                                                return `${label}: ₹${(value/1000).toFixed(1)}k`;
+                                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                            bodyColor: '#fff',
+                                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                                            borderWidth: 1,
+                                            padding: 10,
+                                            boxPadding: 4,
+                                            usePointStyle: true,
+                                            callbacks: {
+                                                label: function(context) {
+                                                    const label = context.label || '';
+                                                    const value = context.parsed || 0;
+                                                    return `${label}: ₹${(value/1000).toFixed(1)}k`;
+                                                }
                                             }
-                                          }
                                         }
                                     }
                                 }}
