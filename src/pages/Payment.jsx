@@ -7,17 +7,72 @@ import { toast } from 'react-toastify';
 import { clearCart } from '../slices/cartSlice'; 
 import { db } from '../firebase'; 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { FaLock, FaShieldAlt } from 'react-icons/fa';
+import { FaLock, FaShieldAlt, FaTicketAlt, FaTimes, FaCheck } from 'react-icons/fa';
 
 // Replace with your Stripe Public Key
 const stripePromise = loadStripe('pk_test_51Q6T83RxZdHdwLQK3yWbKZkOILRx57qh8o1QfKSGhwBRKtBPNz5vpD4Ysg5BwUGtyjKGMk4dBYWLBPEPQebL61Ke00Lc7d32SB');
+
+// --- COUPON CONFIGURATION ---
+const COUPONS = {
+  'GSH20': { discountPercent: 20, expiryDate: new Date(new Date().getTime() + 48 * 60 * 60 * 1000) } // Expires in 48 hours from load (simulated)
+};
 
 const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
   const stripe = useStripe();
   const elements = useElements();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  
   const [processing, setProcessing] = useState(false);
+  
+  // Coupon State
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+  // Calculate Final Amount
+  const finalAmount = totalPrice - discount;
+
+  // --- HANDLE APPLY COUPON ---
+  const handleApplyCoupon = () => {
+    if (!couponCode) {
+      toast.warn("Please enter a coupon code.");
+      return;
+    }
+
+    const code = couponCode.toUpperCase();
+    const couponData = COUPONS[code];
+
+    if (couponData) {
+      const now = new Date();
+      
+      // Check Expiry
+      if (now > couponData.expiryDate) {
+        toast.error(`Coupon ${code} has expired.`);
+        setDiscount(0);
+        setAppliedCoupon(null);
+        return;
+      }
+
+      // Apply Discount
+      const discountAmount = (totalPrice * couponData.discountPercent) / 100;
+      setDiscount(discountAmount);
+      setAppliedCoupon(code);
+      toast.success(`Coupon ${code} applied! You saved ₹${discountAmount.toFixed(2)}`);
+    } else {
+      toast.error("Invalid Coupon Code.");
+      setDiscount(0);
+      setAppliedCoupon(null);
+    }
+  };
+
+  // --- HANDLE REMOVE COUPON ---
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setDiscount(0);
+    setAppliedCoupon(null);
+    toast.info("Coupon removed.");
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -32,7 +87,6 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
       card: cardElement,
-      // 🔹 Added billing_details to link payment to user
       billing_details: {
         name: shippingAddress.fullName,
         email: profile.email,
@@ -47,40 +101,33 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
       // 2. Payment Successful -> Save to Firebase
       try {
         const orderData = {
-          // 🔹 User Details
           email: profile.email, 
           userId: profile.uid,
           
-          // 🔹 Shipping Details
           customerName: shippingAddress.fullName,
           mobile: shippingAddress.mobile || '',
           shippingAddress: shippingAddress,
           
-          // 🔹 Cart Details
           items: cartItems, 
           
-          // 🔹 Amount Details
-          amount: totalPrice,
-          totalAmount: totalPrice,
+          amount: finalAmount, // Save the discounted amount
+          originalAmount: totalPrice, // Keep track of original price
+          discountApplied: discount,
+          couponCode: appliedCoupon,
+          
+          totalAmount: finalAmount, // For consistency
           currency: 'inr',
           
-          // 🔹 Payment Meta
           paymentId: paymentMethod.id,
           paymentStatus: 'Paid',
           orderStatus: 'Processing',
           createdAt: serverTimestamp(),
         };
 
-        // 🔹 Save to 'OrderItems' collection
         await addDoc(collection(db, "OrderItems"), orderData);
 
-        // 3. Clear Cart & Redirect
         dispatch(clearCart());
-        
-        // 🔹 Show Payment Successful Message
         toast.success("Payment Successful! Order placed."); 
-        // alert("Payment Successful!"); // Uncomment this if you want a browser popup instead
-
         navigate('/order-success');
         
       } catch (err) {
@@ -94,9 +141,43 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      
+      {/* --- COUPON SECTION --- */}
+      <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
+        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Promo Code</label>
+        <div className="flex gap-2">
+          <div className="relative flex-grow">
+             <FaTicketAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+             <input 
+               type="text" 
+               value={couponCode}
+               onChange={(e) => setCouponCode(e.target.value)}
+               disabled={!!appliedCoupon}
+               placeholder="Enter Coupon Code"
+               className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-4 text-white text-sm outline-none focus:border-blue-500 disabled:opacity-50"
+             />
+          </div>
+          {appliedCoupon ? (
+             <button type="button" onClick={handleRemoveCoupon} className="bg-rose-600 hover:bg-rose-500 text-white px-4 rounded-lg text-sm font-bold transition-colors">
+               <FaTimes />
+             </button>
+          ) : (
+             <button type="button" onClick={handleApplyCoupon} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg text-sm font-bold transition-colors">
+               Apply
+             </button>
+          )}
+        </div>
+        {appliedCoupon && (
+            <div className="mt-2 flex items-center gap-2 text-emerald-400 text-xs font-medium bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
+                <FaCheck size={10} /> Coupon "{appliedCoupon}" applied successfully!
+            </div>
+        )}
+      </div>
+
+      {/* --- STRIPE CARD ELEMENT --- */}
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 transition-colors focus-within:border-blue-500">
         <CardElement options={{
-          hidePostalCode: false, // 🔹 Explicitly ensure Zip/Postal Code is asked
+          hidePostalCode: false,
           style: {
             base: {
               fontSize: '16px',
@@ -109,6 +190,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
         }}/>
       </div>
       
+      {/* --- PAY BUTTON --- */}
       <button 
         type="submit" 
         disabled={!stripe || processing}
@@ -120,7 +202,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
              Processing...
            </span>
         ) : (
-          <> <FaLock size={14} /> Pay ₹{totalPrice} </>
+          <> <FaLock size={14} /> Pay ₹{finalAmount.toFixed(2)} </>
         )}
       </button>
 
@@ -177,13 +259,21 @@ const Payment = () => {
               </p>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center">
-              <span className="text-slate-400">Total Pay</span>
-              <span className="text-2xl font-bold text-blue-400">₹{totalPrice}</span>
+            <div className="mt-4 pt-4 border-t border-slate-800">
+               {/* Original Price */}
+               <div className="flex justify-between items-center mb-1">
+                  <span className="text-slate-400 text-sm">Subtotal</span>
+                  <span className="text-white font-medium">₹{totalPrice}</span>
+               </div>
+               
+               {/* Discount Row (Hidden if 0) */}
+               {/* We can't access `discount` state here directly easily without lifting state up, 
+                   so for visual simplicity in this structure, dynamic updates happen in button text.
+                   Ideally, CheckoutForm calculates final price. */}
             </div>
           </div>
           
-          {/* Stripe Element */}
+          {/* Stripe Element & Coupon Logic Inside */}
           <Elements stripe={stripePromise}>
             <CheckoutForm 
               shippingAddress={shippingAddress} 

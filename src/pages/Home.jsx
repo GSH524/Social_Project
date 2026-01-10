@@ -4,7 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { addItem } from "../slices/cartSlice";
 import { toast } from "react-toastify";
 import { auth } from "../firebase"; // Import Auth to check email
-import { FaShoppingCart, FaBolt, FaTruck, FaShieldAlt, FaUndo, FaStar, FaArrowRight, FaQuoteLeft } from "react-icons/fa";
+import { 
+  FaShoppingCart, FaBolt, FaTruck, FaShieldAlt, FaUndo, 
+  FaStar, FaArrowRight, FaQuoteLeft, FaCheck, FaClock 
+} from "react-icons/fa";
 import { products } from "../data/dataUtils";
 
 const Home = () => {
@@ -12,6 +15,12 @@ const Home = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isAdmin, setIsAdmin] = useState(false); // State for admin check
+  
+  // --- STATE: Offer Claim Status ---
+  const [isOfferClaimed, setIsOfferClaimed] = useState(false);
+
+  // --- STATE: Countdown Timer (2 Days in seconds) ---
+  const [timeLeft, setTimeLeft] = useState(48 * 60 * 60);
 
   const categories = ["All", "Men", "Women", "Accessories"];
 
@@ -25,10 +34,26 @@ const Home = () => {
       }
     };
     checkAdmin();
-    // Re-check just in case auth loads slowly (optional safety)
     const timer = setTimeout(checkAdmin, 1000); 
     return () => clearTimeout(timer);
   }, []);
+
+  // --- EFFECT: Countdown Logic ---
+  useEffect(() => {
+    const timerInterval = setInterval(() => {
+      setTimeLeft((prevTime) => (prevTime > 0 ? prevTime - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timerInterval);
+  }, []);
+
+  // --- HELPER: Format Time (HH:MM:SS) ---
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const getProductImage = (product) => {
     if (product.image_url) return product.image_url;
@@ -73,6 +98,20 @@ const Home = () => {
         quantity: 1,
     }));
     navigate("/cart");
+  };
+
+  // --- FUNCTION: Handle Claim Offer ---
+  const handleClaimOffer = () => {
+    if (!isOfferClaimed) {
+        setIsOfferClaimed(true);
+        navigator.clipboard.writeText("GSH20");
+        toast.success("Offer Claimed! Code GSH20 copied to clipboard.", {
+            position: "bottom-center",
+            theme: "dark",
+        });
+    } else {
+        toast.info("You have already claimed this offer.", { theme: "dark", position: "bottom-center" });
+    }
   };
 
   return (
@@ -168,8 +207,32 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- PROMO SECTION --- */}
-       <section className="max-w-5xl mx-auto px-4 mb-24"> <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 border border-slate-700 p-8 md:p-16 text-center shadow-2xl"> <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-3xl rounded-full pointer-events-none"></div> <div className="relative z-10"> <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200"> Flat 20% OFF </h2> <p className="text-slate-300 text-base md:text-lg mb-8 max-w-xl mx-auto"> Upgrade your wardrobe today. Use code <strong className="text-white bg-slate-700/50 border border-slate-600 px-2 py-1 rounded mx-1">GSH20</strong> at checkout for exclusive savings on all accessories. </p> <button className="px-8 py-3 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300"> Claim Offer </button> </div> </div> </section> 
+      {/* --- PROMO SECTION WITH TIMER --- */}
+       <section className="max-w-5xl mx-auto px-4 mb-24"> 
+         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 to-slate-900 border border-slate-700 p-8 md:p-16 text-center shadow-2xl"> 
+           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-blue-500/10 blur-3xl rounded-full pointer-events-none"></div> 
+           <div className="relative z-10"> 
+             <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200"> Flat 20% OFF </h2> 
+             
+             {/* TIMER DISPLAY */}
+             <div className="flex items-center justify-center gap-2 text-blue-200 mb-6 font-mono text-lg bg-black/30 w-fit mx-auto px-4 py-1.5 rounded-full border border-blue-500/30">
+               <FaClock className="text-blue-400 animate-pulse" />
+               <span>Expires in: <span className="text-white font-bold">{formatTime(timeLeft)}</span></span>
+             </div>
+
+             <p className="text-slate-300 text-base md:text-lg mb-8 max-w-xl mx-auto"> Upgrade your wardrobe today. Use code <strong className="text-white bg-slate-700/50 border border-slate-600 px-2 py-1 rounded mx-1">GSH20</strong> at checkout for exclusive savings on all accessories. </p> 
+             
+             {/* CLAIM BUTTON */}
+             <button 
+                onClick={handleClaimOffer} 
+                disabled={isOfferClaimed}
+                className={`px-8 py-3 rounded-full font-bold transition-all duration-300 flex items-center justify-center gap-2 mx-auto ${isOfferClaimed ? 'bg-emerald-600 text-white cursor-default' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/25'}`}
+             > 
+                {isOfferClaimed ? <><FaCheck /> Code Copied!</> : 'Claim Offer'} 
+             </button> 
+           </div> 
+         </div> 
+       </section> 
        
        <section className="max-w-7xl mx-auto px-4 mb-24"> <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">What They Say</h2> <div className="grid grid-cols-1 md:grid-cols-3 gap-8"> {[1, 2, 3].map((i) => ( <div key={i} className="bg-slate-800 p-8 rounded-2xl border border-slate-700 relative"> <FaQuoteLeft className="text-blue-500/20 text-4xl absolute top-6 left-6" /> <p className="text-slate-300 relative z-10 mb-6 mt-4"> "Absolutely love the quality. The dark aesthetic fits perfectly with my setup. Shipping was incredibly fast too!" </p> <div className="flex items-center gap-4"> <div className="w-10 h-10 bg-slate-600 rounded-full overflow-hidden"> <img src={`https://i.pravatar.cc/150?img=${i + 10}`} alt="User" /> </div> <div> <h5 className="font-bold text-white text-sm">Alex Johnson</h5> <div className="flex text-yellow-500 text-xs"> <FaStar /><FaStar /><FaStar /><FaStar /><FaStar /> </div> </div> </div> </div> ))} </div> </section> 
        
