@@ -6,16 +6,19 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { toast } from 'react-toastify';
 import { clearCart } from '../slices/cartSlice'; 
 import { db } from '../firebase'; 
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { FaLock, FaShieldAlt, FaTicketAlt, FaTimes, FaCheck } from 'react-icons/fa';
+import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
+import { FaLock, FaShieldAlt, FaTicketAlt, FaTimes, FaCheck, FaCreditCard, FaUniversity } from 'react-icons/fa';
 
-// Replace with your Stripe Public Key
 const stripePromise = loadStripe('pk_test_51Q6T83RxZdHdwLQK3yWbKZkOILRx57qh8o1QfKSGhwBRKtBPNz5vpD4Ysg5BwUGtyjKGMk4dBYWLBPEPQebL61Ke00Lc7d32SB');
 
-// --- COUPON CONFIGURATION ---
-const COUPONS = {
-  'GSH20': { discountPercent: 20, expiryDate: new Date(new Date().getTime() + 48 * 60 * 60 * 1000) } // Expires in 48 hours from load (simulated)
-};
+// --- STATIC BANK OFFERS CONFIGURATION ---
+const BANK_OFFERS = [
+  { id: 'default', name: 'Select Bank Offer', discountPercent: 0 },
+  { id: 'HDFC', name: 'HDFC Bank Credit Card - 10% Off', discountPercent: 10 },
+  { id: 'SBI', name: 'SBI Debit Card - 5% Off', discountPercent: 5 },
+  { id: 'AXIS', name: 'Axis Bank Buzz Card - 15% Off', discountPercent: 15 },
+  { id: 'ICICI', name: 'ICICI Amazon Pay - 8% Off', discountPercent: 8 },
+];
 
 const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
   const stripe = useStripe();
@@ -25,48 +28,58 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
   
   const [processing, setProcessing] = useState(false);
   
-  // Coupon State
+  // --- DISCOUNT STATES ---
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [selectedBankOffer, setSelectedBankOffer] = useState('default');
 
-  // Calculate Final Amount
   const finalAmount = totalPrice - discount;
 
-  // --- HANDLE APPLY COUPON ---
-  const handleApplyCoupon = () => {
+  // --- 1. HANDLE COUPON ---
+  const handleApplyCoupon = async () => {
     if (!couponCode) {
       toast.warn("Please enter a coupon code.");
       return;
     }
 
     const code = couponCode.toUpperCase();
-    const couponData = COUPONS[code];
+    
+    try {
+        const q = query(collection(db, "coupons"), where("code", "==", code), where("isActive", "==", true));
+        const snapshot = await getDocs(q);
 
-    if (couponData) {
-      const now = new Date();
-      
-      // Check Expiry
-      if (now > couponData.expiryDate) {
-        toast.error(`Coupon ${code} has expired.`);
-        setDiscount(0);
-        setAppliedCoupon(null);
-        return;
-      }
+        if (snapshot.empty) {
+            toast.error("Invalid or inactive coupon code.");
+            setDiscount(0);
+            setAppliedCoupon(null);
+            return;
+        }
 
-      // Apply Discount
-      const discountAmount = (totalPrice * couponData.discountPercent) / 100;
-      setDiscount(discountAmount);
-      setAppliedCoupon(code);
-      toast.success(`Coupon ${code} applied! You saved ₹${discountAmount.toFixed(2)}`);
-    } else {
-      toast.error("Invalid Coupon Code.");
-      setDiscount(0);
-      setAppliedCoupon(null);
+        const couponData = snapshot.docs[0].data();
+        const expiryDate = couponData.expiryDate?.toDate ? couponData.expiryDate.toDate() : new Date(couponData.expiryDate);
+
+        if (new Date() > expiryDate) {
+            toast.error("This coupon has expired.");
+            setDiscount(0);
+            setAppliedCoupon(null);
+            return;
+        }
+
+        // RESET BANK OFFER IF COUPON APPLIED (Mutually Exclusive)
+        setSelectedBankOffer('default'); 
+
+        const discountAmount = (totalPrice * couponData.discount) / 100;
+        setDiscount(discountAmount);
+        setAppliedCoupon(code);
+        toast.success(`Coupon ${code} applied! You saved ₹${discountAmount.toFixed(2)}`);
+
+    } catch (error) {
+        console.error("Error validating coupon:", error);
+        toast.error("Error checking coupon.");
     }
   };
 
-  // --- HANDLE REMOVE COUPON ---
   const handleRemoveCoupon = () => {
     setCouponCode('');
     setDiscount(0);
@@ -74,6 +87,32 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     toast.info("Coupon removed.");
   };
 
+  // --- 2. HANDLE BANK OFFER SELECTION ---
+  const handleBankSelection = (e) => {
+    const offerId = e.target.value;
+    setSelectedBankOffer(offerId);
+
+    if (offerId === 'default') {
+        setDiscount(0);
+        return;
+    }
+
+    // RESET COUPON IF BANK OFFER SELECTED (Mutually Exclusive)
+    if (appliedCoupon) {
+        setCouponCode('');
+        setAppliedCoupon(null);
+        toast.info("Coupon removed to apply Bank Offer.");
+    }
+
+    const offer = BANK_OFFERS.find(o => o.id === offerId);
+    if (offer) {
+        const discountAmount = (totalPrice * offer.discountPercent) / 100;
+        setDiscount(discountAmount);
+        toast.success(`${offer.name} applied!`);
+    }
+  };
+
+  // --- 3. HANDLE SUBMIT ---
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -83,7 +122,6 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
 
     const cardElement = elements.getElement(CardElement);
 
-    // 1. Create Payment Method (Stripe)
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
       card: cardElement,
@@ -98,26 +136,20 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
       toast.error(error.message);
       setProcessing(false);
     } else {
-      // 2. Payment Successful -> Save to Firebase
       try {
         const orderData = {
           email: profile.email, 
           userId: profile.uid,
-          
           customerName: shippingAddress.fullName,
           mobile: shippingAddress.mobile || '',
           shippingAddress: shippingAddress,
-          
           items: cartItems, 
-          
-          amount: finalAmount, // Save the discounted amount
-          originalAmount: totalPrice, // Keep track of original price
+          amount: finalAmount, 
+          originalAmount: totalPrice, 
           discountApplied: discount,
-          couponCode: appliedCoupon,
-          
-          totalAmount: finalAmount, // For consistency
+          couponCode: appliedCoupon || selectedBankOffer, // Record which offer was used
+          totalAmount: finalAmount, 
           currency: 'inr',
-          
           paymentId: paymentMethod.id,
           paymentStatus: 'Paid',
           orderStatus: 'Processing',
@@ -142,19 +174,20 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       
-      {/* --- COUPON SECTION --- */}
+      {/* --- SECTION A: COUPON CODE --- */}
       <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Promo Code</label>
+        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block flex items-center gap-2">
+            <FaTicketAlt /> Coupon Code
+        </label>
         <div className="flex gap-2">
           <div className="relative flex-grow">
-             <FaTicketAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
              <input 
                type="text" 
                value={couponCode}
                onChange={(e) => setCouponCode(e.target.value)}
-               disabled={!!appliedCoupon}
-               placeholder="Enter Coupon Code"
-               className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-4 text-white text-sm outline-none focus:border-blue-500 disabled:opacity-50"
+               disabled={!!appliedCoupon || selectedBankOffer !== 'default'}
+               placeholder={selectedBankOffer !== 'default' ? "Bank Offer Active" : "Enter Coupon Code"}
+               className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-4 pr-4 text-white text-sm outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
              />
           </div>
           {appliedCoupon ? (
@@ -162,20 +195,63 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
                <FaTimes />
              </button>
           ) : (
-             <button type="button" onClick={handleApplyCoupon} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-lg text-sm font-bold transition-colors">
+             <button 
+                type="button" 
+                onClick={handleApplyCoupon} 
+                disabled={selectedBankOffer !== 'default'}
+                className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white px-4 rounded-lg text-sm font-bold transition-colors"
+             >
                Apply
              </button>
           )}
         </div>
         {appliedCoupon && (
             <div className="mt-2 flex items-center gap-2 text-emerald-400 text-xs font-medium bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
-                <FaCheck size={10} /> Coupon "{appliedCoupon}" applied successfully!
+                <FaCheck size={10} /> Coupon "{appliedCoupon}" applied!
             </div>
         )}
       </div>
 
-      {/* --- STRIPE CARD ELEMENT --- */}
-      <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 transition-colors focus-within:border-blue-500">
+      {/* --- SECTION B: BANK OFFERS (ALTERNATIVE) --- */}
+      <div className="relative">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-slate-800"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-slate-900 px-2 text-xs text-slate-500 uppercase tracking-widest">OR USE CARD OFFER</span>
+          </div>
+      </div>
+
+      <div className={`bg-slate-950 border ${selectedBankOffer !== 'default' ? 'border-blue-500/50 bg-blue-500/5' : 'border-slate-800'} rounded-xl p-4 transition-all duration-300`}>
+        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block flex items-center gap-2">
+            <FaUniversity /> Bank / Card Offers
+        </label>
+        <div className="relative">
+            <select 
+                value={selectedBankOffer}
+                onChange={handleBankSelection}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-4 pr-8 text-white text-sm outline-none focus:border-blue-500 appearance-none cursor-pointer hover:bg-slate-800 transition-colors"
+            >
+                {BANK_OFFERS.map((offer) => (
+                    <option key={offer.id} value={offer.id}>
+                        {offer.name}
+                    </option>
+                ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                <FaCreditCard />
+            </div>
+        </div>
+        {selectedBankOffer !== 'default' && (
+             <div className="mt-2 flex items-center gap-2 text-blue-400 text-xs font-medium bg-blue-500/10 p-2 rounded-lg border border-blue-500/20 animate-fade-in">
+                <FaCheck size={10} /> Offer Applied. Discount added to total.
+            </div>
+        )}
+      </div>
+
+      {/* --- PAYMENT ELEMENT --- */}
+      <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 transition-colors focus-within:border-blue-500 mt-4">
+        <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">Card Details</label>
         <CardElement options={{
           hidePostalCode: false,
           style: {
@@ -194,7 +270,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
       <button 
         type="submit" 
         disabled={!stripe || processing}
-        className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold shadow-lg shadow-green-900/20 transition-all flex justify-center items-center gap-2"
+        className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold shadow-lg shadow-green-900/20 transition-all flex justify-center items-center gap-2 mt-6"
       >
         {processing ? (
            <span className="flex items-center gap-2">
@@ -206,7 +282,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
         )}
       </button>
 
-      <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
+      <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mt-4">
         <FaShieldAlt /> TLS Secured Transaction
       </div>
     </form>
@@ -215,15 +291,10 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
 
 const Payment = () => {
   const location = useLocation();
-  
-  // Get Redux Data
   const { items, totalPrice } = useSelector((state) => state.cart || { items: [], totalPrice: 0 });
   const { profile } = useSelector((state) => state.user || { profile: {} });
-  
-  // Get shipping address from navigation state
   const shippingAddress = location.state?.shippingAddress;
 
-  // Safety check
   if (!shippingAddress) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center text-slate-400 gap-4">
@@ -240,7 +311,6 @@ const Payment = () => {
         
         <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl">
           
-          {/* Summary Card */}
           <div className="mb-8 p-5 bg-slate-950/50 rounded-2xl border border-slate-800/50">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Order Summary</h3>
             
@@ -260,20 +330,13 @@ const Payment = () => {
             </div>
 
             <div className="mt-4 pt-4 border-t border-slate-800">
-               {/* Original Price */}
                <div className="flex justify-between items-center mb-1">
-                  <span className="text-slate-400 text-sm">Subtotal</span>
-                  <span className="text-white font-medium">₹{totalPrice}</span>
+                 <span className="text-slate-400 text-sm">Subtotal</span>
+                 <span className="text-white font-medium">₹{totalPrice}</span>
                </div>
-               
-               {/* Discount Row (Hidden if 0) */}
-               {/* We can't access `discount` state here directly easily without lifting state up, 
-                   so for visual simplicity in this structure, dynamic updates happen in button text.
-                   Ideally, CheckoutForm calculates final price. */}
             </div>
           </div>
           
-          {/* Stripe Element & Coupon Logic Inside */}
           <Elements stripe={stripePromise}>
             <CheckoutForm 
               shippingAddress={shippingAddress} 

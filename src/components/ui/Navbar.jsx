@@ -2,11 +2,170 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { 
+  doc, getDoc, collection, query, where, onSnapshot, deleteDoc, updateDoc, addDoc, serverTimestamp 
+} from "firebase/firestore";
 import { auth, db } from '../../firebase'; 
 import { FaUser, FaSearch, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
-import {clearCart, setCart} from "../../slices/cartSlice" 
+import { clearCart, setCart } from "../../slices/cartSlice";
 
+// --- TOAST IMPORTS ---
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// --- ICONS FOR NOTIFICATIONS ---
+import { Bell, X, Check, AlertCircle, Loader, Ticket, Package, Info } from 'lucide-react';
+
+// ==========================================
+//  INTERNAL COMPONENT: NAVBAR NOTIFICATIONS
+// ==========================================
+const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [processingId, setProcessingId] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Fetch Notifications based on Role
+  useEffect(() => {
+    if (!user) return;
+    
+    let q;
+    if (isAdmin) {
+      // Admin gets all admin-type notifications
+      q = query(collection(db, "notifications"), where("type", "==", "admin"));
+    } else {
+      // Users get: 
+      // 1. Direct messages (recipientId == user.uid)
+      // 2. Broadcasts (recipientId == "all") like Coupons
+      q = query(
+        collection(db, "notifications"), 
+        where("recipientId", "in", [user.uid, "all"])
+      );
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Filter out admin types for normal users just in case
+      const filteredNotes = isAdmin ? notes : notes.filter(n => n.type !== 'admin');
+      
+      // Sort by newest first
+      filteredNotes.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setNotifications(filteredNotes);
+    });
+    return () => unsubscribe();
+  }, [user, isAdmin]);
+
+  const markAsRead = async (id) => {
+    try { await deleteDoc(doc(db, "notifications", id)); } 
+    catch (e) { console.error("Error clearing notification", e); }
+  };
+
+  // Admin Specific: Handle Return Logic inside Navbar
+  const handleAcceptReturn = async (notification) => {
+    if (!notification.fullOrderId || !notification.senderId) return;
+    setProcessingId(notification.id);
+
+    try {
+      const orderRef = doc(db, "OrderItems", notification.fullOrderId);
+      await updateDoc(orderRef, { orderStatus: "Returned", returnAcceptedAt: new Date() });
+
+      // Notify User about the acceptance
+      await addDoc(collection(db, "notifications"), {
+        type: "user",
+        recipientId: notification.senderId,
+        subType: "order_update",
+        message: `Your return request for Order #${notification.fullOrderId.slice(0,8)} has been ACCEPTED.`,
+        createdAt: serverTimestamp(),
+        read: false
+      });
+
+      // Delete the admin notification
+      await deleteDoc(doc(db, "notifications", notification.id));
+      
+      if(onUpdateData) onUpdateData();
+
+      toast.success("Return Accepted & User Notified", { theme: "dark", position: "top-center" });
+    } catch (error) {
+      console.error("Error accepting return:", error);
+      toast.error("Failed to update order", { theme: "dark" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Helper to render icon based on notification type
+  const renderIcon = (note) => {
+    if (isAdmin) return <AlertCircle size={16} className="text-amber-500"/>;
+    if (note.subType === 'coupon') return <Ticket size={16} className="text-purple-400"/>;
+    if (note.subType === 'order_update') return <Package size={16} className="text-blue-400"/>;
+    return <Info size={16} className="text-slate-400"/>;
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-slate-300 hover:text-white transition-colors">
+        <Bell size={22} />
+        {notifications.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border border-slate-900 animate-pulse"></span>}
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-3 w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[60] overflow-hidden animate-fade-in-up">
+          <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
+            <h4 className="font-bold text-white text-sm">{isAdmin ? 'Admin Notifications' : 'Your Notifications'}</h4>
+            <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-500 hover:text-white"/></button>
+          </div>
+          
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-500 italic">No new notifications</div>
+            ) : (
+              notifications.map(note => (
+                <div key={note.id} className="p-4 border-b border-slate-700 hover:bg-slate-700/50 transition-colors flex flex-col gap-2">
+                  <div className="flex justify-between items-start gap-3">
+                     <div className="mt-1">
+                        {renderIcon(note)}
+                     </div>
+                     <div className="flex-1">
+                        <p className="text-sm text-slate-300 leading-snug">{note.message}</p>
+                        <p className="text-[10px] text-slate-500 mt-1">{note.createdAt?.toDate ? note.createdAt.toDate().toLocaleString() : 'Just now'}</p>
+                     </div>
+                     <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400"><X size={14}/></button>
+                  </div>
+                  
+                  {/* Action Button for Admins (Return Requests) */}
+                  {isAdmin && note.subType === 'return_request' && (
+                     <button 
+                       onClick={() => handleAcceptReturn(note)}
+                       disabled={processingId === note.id}
+                       className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2"
+                     >
+                       {processingId === note.id ? <Loader className="animate-spin" size={12}/> : "Accept Return Request"}
+                     </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==========================================
+//  MAIN COMPONENT: NAVBAR
+// ==========================================
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -18,15 +177,15 @@ const Navbar = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const dropdownRef = useRef(null);
   const userIconRef = useRef(null);
   
-  // Get cart from Redux to save it
   const cart = useSelector(state => state.cart); 
   const totalQuantity = useSelector(state => state.cart.totalQuantity);
 
-  // --- 1. AUTH & CART LOADING LOGIC ---
+  // --- AUTH & CART LOADING ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -35,13 +194,15 @@ const Navbar = () => {
       if (user) {
         localStorage.setItem("isAuthenticated", "true");
         
-        // A. Load this SPECIFIC user's cart from LocalStorage
-        // We use a unique key: 'cart_' + user.uid
+        // Check Admin Role
+        const checkAdmin = user.email === "harigudipati666@gmail.com";
+        setIsAdmin(checkAdmin);
+
+        // Load Cart
         const savedCart = localStorage.getItem(`cart_${user.uid}`);
         if (savedCart) {
           dispatch(setCart(JSON.parse(savedCart)));
         } else {
-          // If this user has no saved cart, start empty
           dispatch(clearCart()); 
         }
 
@@ -53,24 +214,23 @@ const Navbar = () => {
         } catch (error) { console.error(error); }
 
       } else {
-        // B. User Logged Out: Clear Redux state
         localStorage.removeItem("isAuthenticated");
         setProfileImage(null);
+        setIsAdmin(false);
         dispatch(clearCart());
       }
     });
     return () => unsubscribe();
   }, [dispatch]);
 
-  // --- 2. SAVE CART LOGIC ---
-  // Whenever the cart changes, if a user is logged in, save to THEIR unique key
+  // --- SAVE CART ---
   useEffect(() => {
     if (currentUser?.uid) {
       localStorage.setItem(`cart_${currentUser.uid}`, JSON.stringify(cart));
     }
   }, [cart, currentUser]);
 
-  // --- Click Outside Dropdown Logic ---
+  // --- CLICK OUTSIDE ---
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showDropdown) {
@@ -96,8 +256,9 @@ const Navbar = () => {
   const handleLogout = async () => {
     await signOut(auth);
     localStorage.removeItem("isAuthenticated");
-    // Ensure cart is cleared in UI immediately
     dispatch(clearCart()); 
+    // Toast Notification
+    toast.success("Logout Successfully", { theme: "dark", position: "top-center" });
     navigate("/");
   };
 
@@ -110,6 +271,8 @@ const Navbar = () => {
   const getMobileClass = (path) => location.pathname === path ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
 
   return (
+    <>
+    <ToastContainer />
     <nav className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 font-sans shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-8">
@@ -153,6 +316,11 @@ const Navbar = () => {
               <FaSearch size={20} />
             </button>
 
+            {/* Notification Bell (Only if Auth) */}
+            {isAuth && currentUser && (
+              <NavbarNotifications user={currentUser} isAdmin={isAdmin} />
+            )}
+
             <Link to="/cart" className="relative group text-slate-300 hover:text-white transition-colors">
               <FaShoppingCart size={22} />
               {totalQuantity > 0 && (
@@ -177,7 +345,7 @@ const Navbar = () => {
                        <p className="text-slate-400 text-xs">Signed in as</p>
                        <p className="text-white font-medium truncate">{currentUser?.email}</p>
                     </div>
-                    <Link to={currentUser?.email === "harigudipati666@gmail.com" ? "/admindashboard" : "/userdashboard"} className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</Link>
+                    <Link to={isAdmin ? "/admindashboard" : "/userdashboard"} className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</Link>
                     <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-red-400 hover:bg-slate-700 hover:text-red-300">Sign out</button>
                   </div>
                 )}
@@ -215,7 +383,7 @@ const Navbar = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-base font-medium text-white truncate">{currentUser?.email}</div>
-                    <Link to={currentUser?.email === "harigudipati666@gmail.com" ? "/admindashboard" : "/userdashboard"} className="text-sm text-blue-400 hover:text-blue-300 block">View Dashboard</Link>
+                    <Link to={isAdmin ? "/admindashboard" : "/userdashboard"} className="text-sm text-blue-400 hover:text-blue-300 block">View Dashboard</Link>
                   </div>
                   <button onClick={handleLogout} className="text-red-400 text-sm hover:text-red-300">Logout</button>
                 </div>
@@ -230,6 +398,7 @@ const Navbar = () => {
         </div>
       )}
     </nav>
+    </>
   );
 };
 

@@ -5,8 +5,10 @@ const GSHStoreLoader = () => {
     // Main Container - Full screen, dark background, centered content
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050110]">
       
-      {/* Custom CSS for animations that Tailwind doesn't handle natively */}
-      <style jsx>{`
+      {/* FIX: Changed <style jsx> to standard <style> 
+        and wrapped content in curly braces and backticks 
+      */}
+      <style>{`
         /* Animation to move the stroke along the SVG path */
         @keyframes trace {
           0% { stroke-dashoffset: 300; }
@@ -37,8 +39,13 @@ const GSHStoreLoader = () => {
       `}</style>
 
       {/* Infinity Symbol SVG */}
-      {/* viewBox defines the coordinate system (0 0 to 130 60) */}
-      <svg width="140" height="70" viewBox="0 0 130 60" xmlns="http://www.w3.org/2000/svg" className="mb-6">
+      <svg 
+        width="140" 
+        height="70" 
+        viewBox="0 0 130 60" 
+        xmlns="http://www.w3.org/2000/svg" 
+        className="mb-6"
+      >
         {/* Define the Glow Filter */}
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">

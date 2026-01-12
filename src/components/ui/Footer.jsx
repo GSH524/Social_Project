@@ -8,6 +8,14 @@ import {
 } from "react-icons/fa";
 
 const Footer = () => {
+  // Helper function to scroll to top
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth", // Optional: Use "auto" for instant jump
+    });
+  };
+
   return (
     <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 relative overflow-hidden">
       
@@ -63,6 +71,7 @@ const Footer = () => {
               <li key={item}>
                 <Link
                   to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
+                  onClick={scrollToTop} // <--- Added scroll handler here
                   className="hover:text-blue-500 transition-colors duration-200 block sm:inline-block"
                 >
                   {item}
