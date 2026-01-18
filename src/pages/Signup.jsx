@@ -3,9 +3,11 @@ import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "fire
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
+// 1. Import React Hot Toast
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   FaEye, FaEyeSlash, FaUser, FaEnvelope, FaPhone, 
-  FaMapMarkerAlt, FaLock, FaCamera, FaGlobe, FaBuilding, FaCheckCircle 
+  FaMapMarkerAlt, FaLock, FaCamera, FaGlobe, FaBuilding
 } from "react-icons/fa";
 
 const Signup = () => {
@@ -24,7 +26,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
-  const [showToast, setShowToast] = useState(false);
+  const [loading, setLoading] = useState(false); // Added loading state
 
   const navigate = useNavigate();
 
@@ -62,16 +64,20 @@ const Signup = () => {
       return;
     }
 
+    setLoading(true);
+
     try {
       const methods = await fetchSignInMethodsForEmail(auth, email);
 
       if (methods.includes("google.com")) {
         setError("This email is registered with Google. Please login with Google.");
+        setLoading(false);
         return;
       }
       if (methods.includes("password")) {
         setError("Email already registered. Redirecting...");
         setTimeout(() => navigate("/login"), 2000);
+        setLoading(false);
         return;
       }
 
@@ -91,11 +97,31 @@ const Signup = () => {
         createdAt: new Date(),
       });
 
-      setShowToast(true);
+      // 2. Success Toast
+      toast.success("Account created successfully!", {
+        duration: 2000,
+        position: 'top-center',
+        style: {
+          background: "rgba(16, 185, 129, 0.9)", // Emerald green
+          backdropFilter: "blur(10px)",
+          color: "#fff",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          fontWeight: "bold",
+        },
+      });
+
       setTimeout(() => navigate("/login"), 2000);
 
     } catch (err) {
       setError(err.message);
+      toast.error("Signup Failed", {
+        style: {
+          background: "rgba(239, 68, 68, 0.9)", // Red
+          color: "#fff",
+        }
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,19 +157,11 @@ const Signup = () => {
       style={bgStyle}
     >
       
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-3 bg-emerald-500/90 text-white px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border border-emerald-400/50 animate-bounce">
-          <FaCheckCircle className="text-xl" />
-          <div>
-            <h4 className="font-bold text-sm">Success!</h4>
-            <p className="text-xs text-white/90">Account created successfully...</p>
-          </div>
-        </div>
-      )}
+      {/* 3. Toaster Component */}
+      <Toaster />
 
       {/* Signup Card */}
-      <div className="w-full max-w-[340px] sm:max-w-md md:max-w-lg bg-white/10 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-[30px] p-6 sm:p-8 md:p-10 text-center relative overflow-hidden my-8">
+      <div className="w-full max-w-[340px] sm:max-w-md md:max-w-lg bg-white/10 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-[30px] p-6 sm:p-8 md:p-10 text-center relative overflow-hidden my-8 animate-[fadeUp_0.8s_ease-out]">
         
         <h2 className="text-2xl sm:text-3xl font-bold mb-1 tracking-wide text-white">Create Account</h2>
         <p className="text-white/70 text-xs sm:text-sm mb-6 sm:mb-8">Join us to get started</p>
@@ -244,9 +262,10 @@ const Signup = () => {
 
           <button 
             type="submit" 
-            className="mt-4 w-full py-3 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 text-white text-base sm:text-lg font-bold shadow-[0_5px_15px_rgba(37,117,252,0.4)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(37,117,252,0.6)] active:translate-y-0 tracking-wide"
+            disabled={loading}
+            className="mt-4 w-full py-3 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 text-white text-base sm:text-lg font-bold shadow-[0_5px_15px_rgba(37,117,252,0.4)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(37,117,252,0.6)] active:translate-y-0 tracking-wide disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            SIGN UP
+            {loading ? "Creating Account..." : "SIGN UP"}
           </button>
         </form>
 

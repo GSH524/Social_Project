@@ -21,9 +21,8 @@ import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, onSnapshot, serverTimestamp 
 } from "firebase/firestore";
 
-// --- TOASTIFY ---
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+// --- REACT HOT TOAST (Updated) ---
+import toast, { Toaster } from 'react-hot-toast';
 
 // --- ICONS ---
 import { 
@@ -74,8 +73,8 @@ const FeaturedProducts = ({ products, onAddToCart }) => {
                 </div>
                 <h4 className="text-xs md:text-sm font-semibold text-white truncate mb-2" title={prod.product_name}>{prod.product_name}</h4>
                 <div className="flex items-center gap-1 mb-3">
-                   <div className="flex">{renderStars(prod.product_rating || 0)}</div>
-                   <span className="text-[10px] text-slate-400">({prod.product_rating})</span>
+                    <div className="flex">{renderStars(prod.product_rating || 0)}</div>
+                    <span className="text-[10px] text-slate-400">({prod.product_rating})</span>
                 </div>
               </div>
               <button onClick={() => onAddToCart(prod)} className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-lg text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-colors">
@@ -124,10 +123,7 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
   
     return (
       <div className="animate-fade-in-up">
-        {/* UPDATED FILTERS:
-            - Mobile: `flex overflow-x-auto` (Single scrollable line)
-            - Desktop (md+): `md:grid md:grid-cols-3` (Standard Grid)
-        */}
+        {/* UPDATED FILTERS */}
         <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl mb-8 backdrop-blur-sm shadow-lg flex flex-col gap-3">
             <div className="flex items-center gap-2 text-violet-400 font-bold uppercase text-xs tracking-widest border-b border-slate-800/50 pb-2 mb-1">
               <Filter size={14}/> Data Filters
@@ -409,16 +405,55 @@ const UserDashboard = () => {
       return (filters.year === 'All' || d.getFullYear() === parseInt(filters.year)) && (filters.month === 'All' || d.toLocaleString('default', { month: 'short' }) === filters.month) && (filters.category === 'All' || order.items.some(i => i.category === filters.category));
   }), [rawData, filters]);
 
-  const handleAddToCart = (product) => { dispatch(addItem({ product_id: product.product_id, product_name: product.product_name, image_url: product.image_url, selling_unit_price: product.selling_unit_price })); toast.success("Added to cart!", { theme: "dark", position: "bottom-right", autoClose: 1000 }); };
-  const handleProfileSave = async (e) => { e.preventDefault(); if (user?.uid) { try { await setDoc(doc(db, 'users', user.uid), editFormData, { merge: true }); setFirebaseProfile(prev => ({ ...prev, ...editFormData })); setIsEditingProfile(false); toast.success("Updated!", { theme: "dark" }); } catch { toast.error("Failed.", { theme: "dark" }); } } };
+  const handleAddToCart = (product) => { 
+      dispatch(addItem({ product_id: product.product_id, product_name: product.product_name, image_url: product.image_url, selling_unit_price: product.selling_unit_price })); 
+      // Toast
+      toast.success("Added to cart!", { 
+          style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' },
+          position: "bottom-right", 
+          duration: 1000 
+      }); 
+  };
+
+  const handleProfileSave = async (e) => { 
+      e.preventDefault(); 
+      if (user?.uid) { 
+          try { 
+              await setDoc(doc(db, 'users', user.uid), editFormData, { merge: true }); 
+              setFirebaseProfile(prev => ({ ...prev, ...editFormData })); 
+              setIsEditingProfile(false); 
+              toast.success("Profile Updated!", { style: { background: '#1e293b', color: '#fff' } }); 
+          } catch { 
+              toast.error("Update Failed.", { style: { background: '#1e293b', color: '#fff' } }); 
+          } 
+      } 
+  };
+
   const openReturnModal = (order) => { setSelectedReturnOrder(order); setReturnModalOpen(true); };
-  const handleReturnSubmit = async () => { if (selectedReturnOrder?.source === 'live') { try { await updateDoc(doc(db, "OrderItems", selectedReturnOrder.order_id), { orderStatus: "Return Requested", returnReason, returnDate: serverTimestamp() }); await addDoc(collection(db, "notifications"), { type: "admin", subType: "return_request", message: `Return Req: Order #${selectedReturnOrder.order_id.slice(0,6)}`, orderId: selectedReturnOrder.order_id, customerId: user.uid, customerName: displayData.fullName, returnReason, createdAt: serverTimestamp(), isRead: false, fullOrderId: selectedReturnOrder.order_id, senderId: user.uid, senderName: displayData.fullName }); toast.success("Requested!", { theme: "dark" }); } catch { toast.error("Error.", { theme: "dark" }); } } else { toast.info("Demo Mode", { theme: "dark" }); } setReturnModalOpen(false); };
+  
+  const handleReturnSubmit = async () => { 
+      if (selectedReturnOrder?.source === 'live') { 
+          try { 
+              await updateDoc(doc(db, "OrderItems", selectedReturnOrder.order_id), { orderStatus: "Return Requested", returnReason, returnDate: serverTimestamp() }); 
+              await addDoc(collection(db, "notifications"), { type: "admin", subType: "return_request", message: `Return Req: Order #${selectedReturnOrder.order_id.slice(0,6)}`, orderId: selectedReturnOrder.order_id, customerId: user.uid, customerName: displayData.fullName, returnReason, createdAt: serverTimestamp(), isRead: false, fullOrderId: selectedReturnOrder.order_id, senderId: user.uid, senderName: displayData.fullName }); 
+              toast.success("Return Requested Successfully!", { style: { background: '#1e293b', color: '#fff' } }); 
+          } catch { 
+              toast.error("Request Failed.", { style: { background: '#1e293b', color: '#fff' } }); 
+          } 
+      } else { 
+          toast("This is a demo order. Cannot return.", { icon: 'ℹ️', style: { background: '#1e293b', color: '#fff' } }); 
+      } 
+      setReturnModalOpen(false); 
+  };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader size={32} className="animate-spin text-violet-500" /></div>;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden pb-20">
-      <ToastContainer position="top-right" autoClose={3000} />
+      
+      {/* React Hot Toast Container */}
+      <Toaster position="top-right" reverseOrder={false} />
+
       <div className="fixed inset-0 pointer-events-none"><div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-600/10 rounded-full blur-[120px]" /><div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-600/10 rounded-full blur-[120px]" /></div>
 
       <div className="relative z-10 p-4 max-w-[1600px] mx-auto">

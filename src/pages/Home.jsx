@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import toast, { Toaster } from 'react-hot-toast'; // ✅ React Hot Toast
 
 // Firebase & Redux
 import { auth, db } from "../firebase";
@@ -17,7 +17,7 @@ import {
 // Data
 import { products } from "../data/dataUtils";
 
-// --- COMPONENT: PRODUCT CARD ---
+// --- COMPONENT: PRODUCT CARD (UPDATED) ---
 const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   
   const getProductImage = (p) => {
@@ -42,7 +42,8 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   );
 
   return (
-    <div className="group bg-slate-800 rounded-xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 flex flex-col h-full">
+    // ✅ Added 'transform hover:scale-105 hover:z-10' for enlargement effect
+    <div className="group bg-slate-800 rounded-xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 flex flex-col h-full transform hover:scale-105 hover:z-10 relative">
       
       {/* Image Section */}
       <div className="relative h-40 sm:h-64 overflow-hidden bg-slate-700">
@@ -124,17 +125,6 @@ const Home = () => {
     "Plus"
   ];
 
-  // --- Toast Configuration (Only for Coupon now) ---
-  const toastOptions = {
-    position: "top-center",
-    autoClose: 1000,
-    hideProgressBar: true,
-    closeOnClick: true,
-    pauseOnHover: false,
-    draggable: true,
-    theme: "dark",
-  };
-
   // Admin Check
   useEffect(() => {
     const checkAdmin = () => {
@@ -144,8 +134,6 @@ const Home = () => {
     const timer = setTimeout(checkAdmin, 1000); 
     return () => clearTimeout(timer);
   }, []);
-
-  // NOTE: Auto-close Cart Popup useEffect removed to make it persistent.
 
   // Fetch Coupons
   useEffect(() => {
@@ -227,15 +215,21 @@ const Home = () => {
     if (activeCoupon && !isOfferClaimed) {
         setIsOfferClaimed(true);
         navigator.clipboard.writeText(activeCoupon.code);
-        toast.success(`Code ${activeCoupon.code} copied!`, toastOptions);
+        // ✅ React Hot Toast
+        toast.success(`Code ${activeCoupon.code} copied!`, {
+            style: { background: '#1e293b', color: '#fff' }
+        });
     } else if (isOfferClaimed) {
-        toast.info("Already claimed.", toastOptions);
+        toast("Already claimed.", { icon: 'ℹ️', style: { background: '#1e293b', color: '#fff' } });
     }
   };
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-50 font-sans selection:bg-blue-500 selection:text-white overflow-x-hidden">
       
+      {/* ✅ Toaster */}
+      <Toaster position="top-center" />
+
       {/* --- HERO SECTION --- */}
       <section className="relative min-h-[600px] md:h-[90vh] flex items-center justify-center text-center px-4">
         <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat md:bg-fixed" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop")' }}></div>

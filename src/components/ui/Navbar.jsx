@@ -10,8 +10,7 @@ import { FaUser, FaSearch, FaShoppingCart, FaBars, FaTimes } from 'react-icons/f
 import { clearCart, setCart } from "../../slices/cartSlice";
 
 // --- TOAST IMPORTS ---
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import toast, { Toaster } from 'react-hot-toast'; // ✅ Switched to React Hot Toast
 
 // --- ICONS FOR NOTIFICATIONS ---
 import { Bell, X, Ticket, Package, Info, AlertCircle, Loader } from 'lucide-react';
@@ -93,10 +92,26 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
       
       if(onUpdateData) onUpdateData();
 
-      toast.success("Return Accepted & User Notified", { theme: "dark", position: "top-center" });
+      // ✅ React Hot Toast Success
+      toast.success("Return Accepted & User Notified", {
+        style: {
+          background: '#1e293b',
+          color: '#fff',
+          border: '1px solid #334155',
+        },
+        position: "top-center"
+      });
+
     } catch (error) {
       console.error("Error accepting return:", error);
-      toast.error("Failed to update order", { theme: "dark" });
+      // ✅ React Hot Toast Error
+      toast.error("Failed to update order", {
+        style: {
+          background: '#1e293b',
+          color: '#fff',
+          border: '1px solid #ef4444',
+        }
+      });
     } finally {
       setProcessingId(null);
     }
@@ -118,10 +133,6 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
       </button>
 
       {isOpen && (
-        // Mobile Responsive Dropdown: 
-        // right-[-60px] pulls it slightly left on mobile so it doesn't get cut off
-        // w-[90vw] ensures it fits on small screens
-        // sm:right-0 sm:w-80 restores standard desktop sizing
         <div className="absolute top-12 right-[-60px] sm:right-0 w-[90vw] max-w-[340px] sm:w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[60] overflow-hidden animate-fade-in-up">
           <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
             <h4 className="font-bold text-white text-sm">{(isAdmin || isSuperAdmin) ? 'Admin Alerts' : 'Notifications'}</h4>
@@ -199,7 +210,6 @@ const Navbar = () => {
       if (user) {
         localStorage.setItem("isAuthenticated", "true");
         
-        // --- ROLE CHECKS ---
         const superAdminEmail = "gudipatisrihari6@gmail.com";
         const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "harigudipati666@gmail.com"; 
 
@@ -209,7 +219,6 @@ const Navbar = () => {
         setIsSuperAdmin(checkSuperAdmin);
         setIsAdmin(checkAdmin);
 
-        // Load Cart
         const savedCart = localStorage.getItem(`cart_${user.uid}`);
         if (savedCart) {
           dispatch(setCart(JSON.parse(savedCart)));
@@ -217,7 +226,6 @@ const Navbar = () => {
           dispatch(clearCart()); 
         }
 
-        // Fetch Profile Image
         try {
           const docRef = doc(db, "users", user.uid);
           const docSnap = await getDoc(docRef);
@@ -269,7 +277,15 @@ const Navbar = () => {
     await signOut(auth);
     localStorage.removeItem("isAuthenticated");
     dispatch(clearCart()); 
-    toast.success("Logout Successfully", { theme: "dark", position: "top-center" });
+    // ✅ React Hot Toast Success
+    toast.success("Logout Successfully", {
+      style: {
+        background: '#1e293b',
+        color: '#fff',
+        border: '1px solid #334155',
+      },
+      position: "top-center"
+    });
     navigate("/");
   };
 
@@ -281,7 +297,6 @@ const Navbar = () => {
   const getDesktopClass = (path) => location.pathname === path ? "text-blue-500 font-bold transition-colors" : "text-slate-300 hover:text-white transition-colors";
   const getMobileClass = (path) => location.pathname === path ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
 
-  // Determine Dashboard Link
   const getDashboardLink = () => {
     if (isSuperAdmin) return "/superadmindashboard";
     if (isAdmin) return "/admindashboard";
@@ -290,16 +305,15 @@ const Navbar = () => {
 
   return (
     <>
-    <ToastContainer />
-    {/* Height adjusted for mobile (h-16) vs desktop (h-20) */}
+    {/* ✅ Toaster added here for global toasts */}
+    <Toaster position="top-right" reverseOrder={false} />
+    
     <nav className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 font-sans shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20 gap-4 md:gap-8">
 
-          {/* Logo */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-2 group">
             <div className="flex flex-col">
-              {/* Responsive Text Size */}
               <span className="text-xl md:text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors whitespace-nowrap">
                 GSH<span className="text-blue-500">.</span>STORE
               </span>
@@ -307,7 +321,6 @@ const Navbar = () => {
             </div>
           </Link>
 
-          {/* Search Bar (Desktop) */}
           <div className="hidden md:flex flex-1 max-w-lg mx-auto">
             <form onSubmit={handleSearch} className="w-full relative flex items-center">
               <input
@@ -323,18 +336,13 @@ const Navbar = () => {
             </form>
           </div>
 
-          {/* Desktop Links */}
           <div className="hidden lg:flex items-center space-x-8 text-sm font-medium">
             <Link to="/" className={getDesktopClass("/")}>Home</Link>
             <Link to="/about" className={getDesktopClass("/about")}>About</Link>
             <Link to="/contact" className={getDesktopClass("/contact")}>Contact</Link>
           </div>
 
-          {/* Icons Section */}
           <div className="flex items-center gap-3 md:gap-5">
-            {/* Removed Mobile Search Icon: Redundant because Hamburger menu has search inside it */}
-
-            {/* Notification Bell (Only if Auth) */}
             {isAuth && currentUser && (
               <NavbarNotifications user={currentUser} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
             )}
@@ -348,7 +356,6 @@ const Navbar = () => {
               )}
             </Link>
 
-            {/* Desktop Profile Dropdown */}
             {isAuth ? (
               <div className="relative hidden md:block">
                 <button ref={userIconRef} onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-2 focus:outline-none">
@@ -371,13 +378,11 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
-              // Desktop User Icon
               <button onClick={() => navigate("/login")} className="hidden md:block text-slate-300 hover:text-white transition-colors">
                  <FaUser size={22} />
               </button>
             )}
 
-            {/* Mobile Hamburger */}
             <button className="md:hidden text-slate-300 p-1" onClick={() => setIsOpen(!isOpen)}>
               {isOpen ? <FaTimes size={22} /> : <FaBars size={22} />}
             </button>
@@ -385,12 +390,9 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-slate-800 border-t border-slate-700 absolute w-full left-0 z-40 shadow-xl">
           <div className="px-4 pt-4 pb-6 space-y-4">
-            
-            {/* Mobile Search Input */}
             <form onSubmit={handleSearch} className="flex items-center">
                <input 
                   type="text" 

@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { toast } from 'react-toastify';
+// ✅ 1. Import React Hot Toast
+import toast, { Toaster } from 'react-hot-toast'; 
 import { clearCart } from '../slices/cartSlice'; 
 import { db } from '../firebase'; 
 import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
@@ -39,7 +40,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
   // --- 1. HANDLE COUPON ---
   const handleApplyCoupon = async () => {
     if (!couponCode) {
-      toast.warn("Please enter a coupon code.");
+      toast("Please enter a coupon code", { icon: '⚠️', style: { background: '#1e293b', color: '#fff' } });
       return;
     }
 
@@ -50,7 +51,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {
-            toast.error("Invalid or inactive coupon code.");
+            toast.error("Invalid or inactive coupon code.", { style: { background: '#1e293b', color: '#fff' } });
             setDiscount(0);
             setAppliedCoupon(null);
             return;
@@ -60,7 +61,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
         const expiryDate = couponData.expiryDate?.toDate ? couponData.expiryDate.toDate() : new Date(couponData.expiryDate);
 
         if (new Date() > expiryDate) {
-            toast.error("This coupon has expired.");
+            toast.error("This coupon has expired.", { style: { background: '#1e293b', color: '#fff' } });
             setDiscount(0);
             setAppliedCoupon(null);
             return;
@@ -72,11 +73,13 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
         const discountAmount = (totalPrice * couponData.discount) / 100;
         setDiscount(discountAmount);
         setAppliedCoupon(code);
-        toast.success(`Coupon ${code} applied! You saved ₹${discountAmount.toFixed(2)}`);
+        toast.success(`Coupon applied! Saved ₹${discountAmount.toFixed(2)}`, { 
+            style: { background: '#1e293b', color: '#fff', border: '1px solid #10b981' } 
+        });
 
     } catch (error) {
         console.error("Error validating coupon:", error);
-        toast.error("Error checking coupon.");
+        toast.error("Error checking coupon.", { style: { background: '#1e293b', color: '#fff' } });
     }
   };
 
@@ -84,7 +87,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     setCouponCode('');
     setDiscount(0);
     setAppliedCoupon(null);
-    toast.info("Coupon removed.");
+    toast("Coupon removed.", { icon: '🗑️', style: { background: '#1e293b', color: '#fff' } });
   };
 
   // --- 2. HANDLE BANK OFFER SELECTION ---
@@ -101,14 +104,16 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     if (appliedCoupon) {
         setCouponCode('');
         setAppliedCoupon(null);
-        toast.info("Coupon removed to apply Bank Offer.");
+        toast("Coupon removed to apply Bank Offer.", { icon: 'ℹ️', style: { background: '#1e293b', color: '#fff' } });
     }
 
     const offer = BANK_OFFERS.find(o => o.id === offerId);
     if (offer) {
         const discountAmount = (totalPrice * offer.discountPercent) / 100;
         setDiscount(discountAmount);
-        toast.success(`${offer.name} applied!`);
+        toast.success(`${offer.name} applied!`, { 
+            style: { background: '#1e293b', color: '#fff', border: '1px solid #3b82f6' } 
+        });
     }
   };
 
@@ -133,7 +138,7 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
     });
 
     if (error) {
-      toast.error(error.message);
+      toast.error(error.message, { style: { background: '#1e293b', color: '#fff' } });
       setProcessing(false);
     } else {
       try {
@@ -159,12 +164,16 @@ const CheckoutForm = ({ shippingAddress, totalPrice, cartItems, profile }) => {
         await addDoc(collection(db, "OrderItems"), orderData);
 
         dispatch(clearCart());
-        toast.success("Payment Successful! Order placed."); 
-        navigate('/order-success');
+        toast.success("Payment Successful! Order placed.", { 
+            duration: 2000, 
+            style: { background: '#1e293b', color: '#fff', border: '1px solid #10b981' } 
+        });
+        
+        setTimeout(() => navigate('/order-success'), 1500);
         
       } catch (err) {
         console.error("Error saving order:", err);
-        toast.error("Payment successful, but failed to save order details.");
+        toast.error("Payment successful, but failed to save order details.", { style: { background: '#1e293b', color: '#fff' } });
       }
       
       setProcessing(false);
@@ -306,6 +315,9 @@ const Payment = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 flex justify-center">
+      {/* ✅ 2. Toaster Added */}
+      <Toaster position="top-right" />
+
       <div className="w-full max-w-lg">
         <h2 className="text-3xl font-bold mb-8 text-center text-white">Secure Payment</h2>
         

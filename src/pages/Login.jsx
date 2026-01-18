@@ -11,8 +11,8 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaLock, FaEnvelope } from "react-icons/fa";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+// ✅ 1. Import React Hot Toast
+import toast, { Toaster } from 'react-hot-toast';
 
 const provider = new GoogleAuthProvider();
 
@@ -26,8 +26,8 @@ const Login = () => {
   const navigate = useNavigate();
   
   // --- ROLES CONFIGURATION ---
-  const Admin_email = import.meta.env.Admin_email; // Keep your existing Env variable
-  const SuperAdmin_email = "gudipatisrihari6@gmail.com"; // Hardcoded Super Admin
+  const Admin_email = import.meta.env.Admin_email; 
+  const SuperAdmin_email = "gudipatisrihari6@gmail.com"; 
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
@@ -37,7 +37,6 @@ const Login = () => {
     }
   }, []);
 
-  // Helper to handle routing based on email
   const handleRedirect = (userEmail) => {
     if (userEmail === SuperAdmin_email) {
       navigate("/superadmindashboard");
@@ -62,10 +61,16 @@ const Login = () => {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
 
+      // ✅ 2. Success Toast
       toast.success("Login Successful! Redirecting...", {
-        position: "top-right",
-        autoClose: 1500,
-        theme: "dark",
+        duration: 1500,
+        position: "top-center",
+        style: {
+          background: "rgba(255, 255, 255, 0.1)",
+          backdropFilter: "blur(10px)",
+          color: "#fff",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+        },
       });
 
       setTimeout(() => {
@@ -74,7 +79,15 @@ const Login = () => {
 
     } catch (err) {
       setError("Invalid email or password");
-      toast.error("Invalid email or password");
+      // ✅ 3. Error Toast
+      toast.error("Invalid email or password", {
+        style: {
+          background: "rgba(255, 50, 50, 0.2)", // Red tint
+          backdropFilter: "blur(10px)",
+          color: "#fff",
+          border: "1px solid rgba(255, 50, 50, 0.3)",
+        },
+      });
     }
   };
 
@@ -105,10 +118,16 @@ const Login = () => {
         });
       }
 
+      // ✅ 4. Google Success Toast
       toast.success("Google Login Successful!", {
-        position: "top-right",
-        autoClose: 1500,
-        theme: "dark",
+        duration: 1500,
+        position: "top-center",
+        style: {
+          background: "rgba(255, 255, 255, 0.1)",
+          backdropFilter: "blur(10px)",
+          color: "#fff",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+        },
       });
 
       setTimeout(() => {
@@ -118,7 +137,14 @@ const Login = () => {
     } catch (err) {
       if (err.code === 'auth/popup-closed-by-user') return; 
       setError("Google login failed. Please try again.");
-      toast.error("Google login failed.");
+      toast.error("Google login failed.", {
+        style: {
+          background: "rgba(255, 50, 50, 0.2)",
+          backdropFilter: "blur(10px)",
+          color: "#fff",
+          border: "1px solid rgba(255, 50, 50, 0.3)",
+        },
+      });
       console.error(err);
     }
   };
@@ -136,7 +162,8 @@ const Login = () => {
       className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden"
       style={bgStyle}
     >
-      <ToastContainer />
+      {/* ✅ 5. Toaster Component */}
+      <Toaster />
 
       <div className="w-full max-w-[320px] sm:max-w-sm md:max-w-md bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-[25px] border border-white/10 rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 sm:p-8 md:p-10 relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">
         

@@ -1,20 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { removeItem, updateQuantity, clearCart } from '../slices/cartSlice';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import toast, { Toaster } from 'react-hot-toast'; // ✅ Import React Hot Toast
 import { 
   FaTrash, FaMinus, FaPlus, FaArrowLeft, FaShoppingBag, 
-  FaCreditCard, FaLock, FaExclamationTriangle, FaTimes, FaUserCircle 
+  FaCreditCard, FaLock, FaExclamationTriangle, FaUserCircle 
 } from 'react-icons/fa';
 
 const Cart = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  // --- State for Custom Modals ---
-  const [showClearModal, setShowClearModal] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // 1. Get Cart Data from Redux
   const { items, totalQuantity, totalPrice } = useSelector((state) => state.cart || { items: [], totalQuantity: 0, totalPrice: 0 });
@@ -35,9 +31,16 @@ const Cart = () => {
   // --- Handlers ---
   const handleRemove = (id) => {
     dispatch(removeItem(id));
-    // Kept toast for single item removal as it's a minor action, 
-    // but you can remove this line if you want zero toasts.
-    toast.info("Item removed", { position: "bottom-right", theme: "dark", autoClose: 1000, hideProgressBar: true });
+    // Standard Success Toast
+    toast.success("Item removed from cart", {
+      icon: '🗑️',
+      style: {
+        borderRadius: '10px',
+        background: '#1e293b',
+        color: '#fff',
+        border: '1px solid #334155'
+      },
+    });
   };
 
   const handleDecrease = (id, quantity) => {
@@ -49,34 +52,103 @@ const Cart = () => {
     dispatch(updateQuantity({ id, quantity: quantity + 1 }));
   };
 
-  // Open the Clear Cart Confirmation Modal
+  // --- INTERACTIVE TOAST: Clear Cart ---
   const handleClearCartClick = () => {
-    setShowClearModal(true);
+    toast((t) => (
+      <div className="flex flex-col gap-2 min-w-[250px]">
+        <div className="flex items-center gap-2">
+            <div className="bg-red-500/20 p-2 rounded-full text-red-500"><FaExclamationTriangle /></div>
+            <span className="font-bold text-white">Clear entire cart?</span>
+        </div>
+        <p className="text-xs text-slate-400">This action cannot be undone.</p>
+        <div className="flex gap-2 mt-2">
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            className="flex-1 py-1.5 px-3 rounded-lg border border-slate-600 text-slate-300 text-xs hover:bg-slate-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={() => {
+              dispatch(clearCart());
+              toast.dismiss(t.id);
+              toast.success("Cart cleared successfully!", { style: { background: '#1e293b', color: '#fff' } });
+            }}
+            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-500 transition-colors"
+          >
+            Yes, Clear
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 5000, // Give user time to decide
+      style: {
+        background: '#0f172a', // Darker background for modal feel
+        border: '1px solid #334155',
+        color: '#fff',
+        padding: '16px',
+        borderRadius: '16px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+      },
+    });
   };
 
-  // Actual Action: Clear Cart
-  const confirmClearCart = () => {
-    dispatch(clearCart());
-    setShowClearModal(false);
-  };
-
-  // --- CHECKOUT LOGIC ---
+  // --- INTERACTIVE TOAST: Login Required ---
   const handleCheckout = () => {
     if (items.length === 0) {
-      toast.error("Your cart is empty!", { position: "top-center", theme: "dark", autoClose: 1000 });
+      toast.error("Your cart is empty!", {
+        style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }
+      });
       return;
     }
 
     if (isLoggedIn) {
       navigate('/shipping');
     } else {
-      // Show Custom Login Modal instead of Toast
-      setShowLoginModal(true);
+      toast((t) => (
+        <div className="flex flex-col gap-3 min-w-[260px]">
+           <div className="flex items-center gap-3">
+              <div className="bg-blue-500/20 p-2 rounded-full text-blue-500"><FaUserCircle size={20} /></div>
+              <div>
+                  <h4 className="font-bold text-white text-sm">Login Required</h4>
+                  <p className="text-[10px] text-slate-400">Sign in to checkout.</p>
+              </div>
+           </div>
+           <div className="flex flex-col gap-2 mt-1">
+              <button 
+                onClick={() => { toast.dismiss(t.id); navigate('/login'); }}
+                className="w-full py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"
+              >
+                Login / Register
+              </button>
+              <button 
+                onClick={() => { toast.dismiss(t.id); /* Add Guest logic if needed */ }}
+                className="w-full py-2 rounded-lg border border-slate-600 text-slate-300 text-xs hover:bg-slate-700 transition-colors"
+              >
+                Continue as Guest
+              </button>
+           </div>
+        </div>
+      ), {
+        duration: 6000,
+        position: 'top-center', // Show this important one in the center top
+        style: {
+          background: '#0f172a',
+          border: '1px solid #3b82f6', // Blue border for emphasis
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '16px',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.7)'
+        },
+      });
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-8 px-3 sm:py-12 sm:px-4 font-sans selection:bg-blue-500 selection:text-white">
+      {/* React Hot Toast Container */}
+      <Toaster position="bottom-center" reverseOrder={false} />
+
       <div className="max-w-6xl mx-auto">
         
         {/* --- Header --- */}
@@ -138,9 +210,9 @@ const Cart = () => {
                            onClick={() => handleRemove(item.product_id)}
                            className="text-slate-500 hover:text-red-400 transition-colors p-1"
                            aria-label="Remove item"
-                         >
-                           <FaTrash size={14} />
-                         </button>
+                          >
+                            <FaTrash size={14} />
+                          </button>
                       </div>
                       <p className="text-xs text-slate-400 mt-1 capitalize">{item.product_category}</p>
                     </div>
@@ -223,73 +295,6 @@ const Cart = () => {
           </div>
         )}
       </div>
-
-      {/* --- CONFIRMATION MODAL (Clear Cart) --- */}
-      {showClearModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowClearModal(false)}></div>
-          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in-up">
-            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 mx-auto">
-              <FaExclamationTriangle className="text-red-500 text-xl" />
-            </div>
-            <h3 className="text-xl font-bold text-white text-center mb-2">Clear entire cart?</h3>
-            <p className="text-slate-400 text-center text-sm mb-6">
-              This will remove all {totalQuantity} items from your shopping bag. This action cannot be undone.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => setShowClearModal(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition-all font-semibold text-sm"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmClearCart}
-                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white transition-all font-semibold text-sm shadow-lg shadow-red-900/20"
-              >
-                Yes, Clear It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- LOGIN REQUIRED MODAL (Checkout) --- */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowLoginModal(false)}></div>
-          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in-up">
-            <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">
-               <FaTimes />
-            </button>
-            
-            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 mx-auto">
-              <FaUserCircle className="text-blue-500 text-2xl" />
-            </div>
-            
-            <h3 className="text-xl font-bold text-white text-center mb-2">Login Required</h3>
-            <p className="text-slate-400 text-center text-sm mb-6">
-              Please sign in to your account to proceed with checkout and complete your order.
-            </p>
-            
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={() => navigate('/login')}
-                className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all font-bold text-sm shadow-lg shadow-blue-900/20"
-              >
-                Login / Register
-              </button>
-              <button 
-                onClick={() => setShowLoginModal(false)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700 transition-all font-semibold text-sm"
-              >
-                Continue as Guest (Browse)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
