@@ -11,7 +11,6 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaLock, FaEnvelope } from "react-icons/fa";
-// 1. Import Toastify
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -23,10 +22,13 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  // Removed custom showToast state
 
   const navigate = useNavigate();
-const  Admin_email=import.meta.env.Admin_email;
+  
+  // --- ROLES CONFIGURATION ---
+  const Admin_email = import.meta.env.Admin_email; // Keep your existing Env variable
+  const SuperAdmin_email = "gudipatisrihari6@gmail.com"; // Hardcoded Super Admin
+
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
     if (savedEmail) {
@@ -34,6 +36,17 @@ const  Admin_email=import.meta.env.Admin_email;
       setRememberMe(true);
     }
   }, []);
+
+  // Helper to handle routing based on email
+  const handleRedirect = (userEmail) => {
+    if (userEmail === SuperAdmin_email) {
+      navigate("/superadmindashboard");
+    } else if (userEmail === Admin_email) {
+      navigate("/admindashboard");
+    } else {
+      navigate("/");
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -49,28 +62,18 @@ const  Admin_email=import.meta.env.Admin_email;
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
 
-      // 2. Trigger Success Toast
       toast.success("Login Successful! Redirecting...", {
         position: "top-right",
         autoClose: 1500,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
         theme: "dark",
       });
 
       setTimeout(() => {
-        if (email === Admin_email) {
-          navigate("/admindashboard");
-        } else {
-          navigate("/");
-        }
+        handleRedirect(email);
       }, 1500);
 
     } catch (err) {
       setError("Invalid email or password");
-      // Optional: Trigger error toast as well
       toast.error("Invalid email or password");
     }
   };
@@ -102,7 +105,6 @@ const  Admin_email=import.meta.env.Admin_email;
         });
       }
 
-      // 2. Trigger Success Toast
       toast.success("Google Login Successful!", {
         position: "top-right",
         autoClose: 1500,
@@ -110,11 +112,7 @@ const  Admin_email=import.meta.env.Admin_email;
       });
 
       setTimeout(() => {
-        if (user.email === Admin_email) {
-          navigate("/admindashboard");
-        } else {
-          navigate("/");
-        }
+        handleRedirect(user.email);
       }, 1500);
 
     } catch (err) {
@@ -138,21 +136,16 @@ const  Admin_email=import.meta.env.Admin_email;
       className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden"
       style={bgStyle}
     >
-      {/* 3. Add ToastContainer to render the toasts */}
       <ToastContainer />
 
-      {/* Login Card */}
       <div className="w-full max-w-[320px] sm:max-w-sm md:max-w-md bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-[25px] border border-white/10 rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 sm:p-8 md:p-10 relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">
         
-        {/* Background Glow Effect */}
         <div className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] bg-[radial-gradient(circle,rgba(255,255,255,0.1)_0%,transparent_60%)] pointer-events-none" />
 
-        {/* User Icon */}
         <div className="text-center mb-8 sm:mb-10 relative z-10">
           <FaUserCircle className="text-[60px] sm:text-[80px] text-white/30 mx-auto drop-shadow-md transition-transform duration-500 hover:scale-105" />
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="bg-red-500/20 border border-red-500/50 text-red-200 rounded-lg text-xs sm:text-sm p-3 mb-5 text-center relative z-10">
             {error}
@@ -161,7 +154,6 @@ const  Admin_email=import.meta.env.Admin_email;
 
         <form onSubmit={handleLogin} className="relative z-10">
           
-          {/* Email Input */}
           <div className="relative mb-6 sm:mb-8 flex items-center border-b border-white/40 transition-colors duration-300 focus-within:border-white">
             <span className="text-white text-lg mr-3 sm:mr-4 pb-2"><FaEnvelope /></span>
             <input
@@ -174,7 +166,6 @@ const  Admin_email=import.meta.env.Admin_email;
             />
           </div>
 
-          {/* Password Input */}
           <div className="relative mb-6 sm:mb-8 flex items-center border-b border-white/40 transition-colors duration-300 focus-within:border-white">
             <span className="text-white text-lg mr-3 sm:mr-4 pb-2"><FaLock /></span>
             <input
@@ -193,7 +184,6 @@ const  Admin_email=import.meta.env.Admin_email;
             </span>
           </div>
 
-          {/* Remember Me & Forgot Password */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 text-xs sm:text-sm gap-3 sm:gap-0 relative z-10">
             <div className="flex items-center group">
               <input 
@@ -216,7 +206,6 @@ const  Admin_email=import.meta.env.Admin_email;
             </button>
           </div>
 
-          {/* Login Button */}
           <button 
             type="submit" 
             className="w-full bg-gradient-to-r from-[#4b1d58] to-[#3a3a8a] text-white py-3 rounded-full font-semibold tracking-[1.5px] uppercase shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:from-[#5e246e] hover:to-[#4a4ab5] mb-4 text-sm sm:text-base"
@@ -225,7 +214,6 @@ const  Admin_email=import.meta.env.Admin_email;
           </button>
         </form>
 
-        {/* Social Login */}
         <div className="text-center mt-4 relative z-10">
             <p className="text-white/50 mb-4 text-xs sm:text-sm">Or login with</p>
             <button
@@ -238,7 +226,6 @@ const  Admin_email=import.meta.env.Admin_email;
             </button>
         </div>
 
-        {/* Sign Up Link */}
         <p className="text-center mt-6 mb-0 text-white/50 text-xs sm:text-sm relative z-10">
           Don't have an account? <Link to="/signup" className="text-white font-bold ml-1 hover:underline">Sign up</Link>
         </p>

@@ -11,7 +11,7 @@ import { addItem } from '../slices/cartSlice';
 // Icons
 import { 
   FaShoppingCart, FaBolt, FaTruck, FaShieldAlt, FaUndo, 
-  FaStar, FaArrowRight, FaQuoteLeft, FaCheck, FaClock, FaFire, FaTimes 
+  FaStar, FaArrowRight, FaQuoteLeft, FaCheck, FaClock, FaFire, FaTimes, FaTags, FaUserFriends
 } from "react-icons/fa";
 
 // Data
@@ -22,7 +22,10 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   
   const getProductImage = (p) => {
     if (p.image_url) return p.image_url;
+    // Fallback images based on category/department
     if (p.product_category === "Accessories") return "https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?q=80&w=2070&auto=format&fit=crop";
+    else if (p.product_category === "Jeans") return "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1974&auto=format&fit=crop";
+    else if (p.product_category === "Dresses") return "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=2083&auto=format&fit=crop";
     else if (p.product_department === "Men") return "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=2148&auto=format&fit=crop";
     else if (p.product_department === "Women") return "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?q=80&w=2135&auto=format&fit=crop";
     return "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop";
@@ -56,7 +59,7 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
           <span className="text-[8px] sm:text-[9px] font-bold text-slate-200 mt-0.5">({product.product_rating || 0})</span>
         </div>
 
-        {/* Desktop Overlay Button (Hidden on touch typically, strictly hover) */}
+        {/* Desktop Overlay Button */}
         {!isAdmin && (
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent flex items-end justify-center pb-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hidden sm:flex">
             <button onClick={() => onBuyNow(product)} className="flex items-center gap-1 bg-white text-slate-900 px-4 py-1.5 rounded-full font-bold text-xs hover:bg-blue-500 hover:text-white transition-colors shadow-lg transform active:scale-95">
@@ -102,7 +105,35 @@ const Home = () => {
   const [activeCoupon, setActiveCoupon] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  const categories = ["All", "Men", "Women", "Accessories"];
+  // --- 1. DEPARTMENTS LIST ---
+  const departments = ["All", "Men", "Women", "Kids"];
+
+  // --- 2. SPECIFIC CATEGORIES LIST ---
+  const shopCategories = [
+    "Jeans",
+    "Shorts",
+    "Dresses",
+    "Skirts",
+    "Swim",
+    "Socks",
+    "Maternity",
+    "Suits",
+    "Intimates",
+    "Pants & Capris",
+    "Fashion Hoodies & Sweatshirts",
+    "Plus"
+  ];
+
+  // --- Toast Configuration (Only for Coupon now) ---
+  const toastOptions = {
+    position: "top-center",
+    autoClose: 1000,
+    hideProgressBar: true,
+    closeOnClick: true,
+    pauseOnHover: false,
+    draggable: true,
+    theme: "dark",
+  };
 
   // Admin Check
   useEffect(() => {
@@ -114,15 +145,7 @@ const Home = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // --- NEW: Auto-close Cart Popup after 2 Seconds ---
-  useEffect(() => {
-    if (showCartPopup) {
-      const timer = setTimeout(() => {
-        setShowCartPopup(false);
-      }, 2000); // 2000ms = 2 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [showCartPopup]);
+  // NOTE: Auto-close Cart Popup useEffect removed to make it persistent.
 
   // Fetch Coupons
   useEffect(() => {
@@ -166,10 +189,13 @@ const Home = () => {
     return `${d}d ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Data Filtering
+  // --- DATA FILTERING ---
   const filteredProducts = selectedCategory === "All"
       ? products.slice(0, 8)
-      : products.filter((p) => p.product_department === selectedCategory || p.product_category === selectedCategory).slice(0, 8);
+      : products.filter((p) => 
+          p.product_department === selectedCategory || 
+          p.product_category === selectedCategory
+        ).slice(0, 8);
 
   const trendingProducts = products.slice(8, 20);
 
@@ -201,10 +227,9 @@ const Home = () => {
     if (activeCoupon && !isOfferClaimed) {
         setIsOfferClaimed(true);
         navigator.clipboard.writeText(activeCoupon.code);
-        // Added autoClose: 2000 here as well
-        toast.success(`Code ${activeCoupon.code} copied!`, { position: "bottom-center", theme: "dark", autoClose: 2000 });
+        toast.success(`Code ${activeCoupon.code} copied!`, toastOptions);
     } else if (isOfferClaimed) {
-        toast.info("Already claimed.", { theme: "dark", position: "bottom-center", autoClose: 2000 });
+        toast.info("Already claimed.", toastOptions);
     }
   };
 
@@ -241,34 +266,60 @@ const Home = () => {
               <div key={index} className="flex flex-col items-center text-center p-2">
                 <item.icon className="text-blue-500 text-xl md:text-3xl mb-2 md:mb-3" />
                 <h4 className="text-white font-bold text-xs md:text-base">{item.title}</h4>
-                <p className="text-slate-400 text-[10px] md:text-sm">{item.desc}</p>
+                <p className="text-slate-400 text-xs md:text-sm">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* --- CATEGORY FILTER --- */}
-      <section id="shop" className="px-4 mb-8 sm:mb-12 text-center">
-        <h2 className="text-2xl md:text-3xl font-bold mb-6 sm:mb-8">Shop by Category</h2>
+      {/* --- SECTION 1: SHOP BY DEPARTMENT --- */}
+      <section id="shop" className="px-4 mb-8 text-center">
+        <div className="flex items-center justify-center gap-2 mb-6">
+            <FaUserFriends className="text-blue-500" />
+            <h2 className="text-xl md:text-2xl font-bold text-white">Shop by Department</h2>
+        </div>
         <div className="flex flex-nowrap overflow-x-auto gap-2 sm:gap-3 pb-4 justify-start sm:justify-center scrollbar-hide px-2">
           <div className="flex gap-2 bg-slate-800 p-1.5 sm:p-2 rounded-xl sm:rounded-full border border-slate-700 min-w-max mx-auto">
-            {categories.map((cat) => (
+            {departments.map((dept) => (
                 <button 
-                  key={cat} 
-                  onClick={() => setSelectedCategory(cat)} 
-                  className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap ${selectedCategory === cat ? "bg-blue-600 text-white shadow-lg shadow-blue-900/50" : "text-slate-400 hover:text-white hover:bg-slate-700"}`}
+                  key={dept} 
+                  onClick={() => setSelectedCategory(dept)} 
+                  className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-full text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap ${selectedCategory === dept ? "bg-blue-600 text-white shadow-lg shadow-blue-900/50" : "text-slate-400 hover:text-white hover:bg-slate-700"}`}
                 >
-                {cat}
+                {dept}
                 </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* --- PRODUCT GRID --- */}
+      {/* --- SECTION 2: SHOP BY CATEGORY --- */}
+      <section className="px-4 mb-12 text-center">
+        <div className="flex items-center justify-center gap-2 mb-6">
+            <FaTags className="text-emerald-500" />
+            <h2 className="text-xl md:text-2xl font-bold text-white">Shop by Category</h2>
+        </div>
+        <div className="max-w-5xl mx-auto flex flex-wrap justify-center gap-2 sm:gap-3">
+            {shopCategories.map((cat) => (
+                <button 
+                  key={cat} 
+                  onClick={() => setSelectedCategory(cat)} 
+                  className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg border border-slate-700 text-[10px] sm:text-xs font-medium transition-all duration-300 hover:scale-105 ${selectedCategory === cat ? "bg-emerald-600 border-emerald-500 text-white" : "bg-slate-800/50 text-slate-300 hover:bg-slate-700 hover:text-white"}`}
+                >
+                {cat}
+                </button>
+            ))}
+        </div>
+      </section>
+
+      {/* --- MAIN PRODUCT GRID --- */}
       <section className="max-w-7xl mx-auto px-4 pb-16">
-        {/* Grid adjusted: gap-3 for mobile, gap-8 for desktop */}
+        {/* Dynamic Title based on selection */}
+        <h3 className="text-lg font-bold text-slate-400 mb-6 border-l-4 border-blue-500 pl-3">
+            Showing results for: <span className="text-white">{selectedCategory}</span>
+        </h3>
+
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8">
           {filteredProducts.map((p) => (
             <ProductCard 
@@ -279,6 +330,14 @@ const Home = () => {
               onBuyNow={handleBuyNow} 
             />
           ))}
+          {/* Empty State if no products match filter */}
+          {filteredProducts.length === 0 && (
+             <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-800/20 rounded-xl border border-dashed border-slate-700">
+                <FaUndo className="text-3xl mb-3 opacity-50"/>
+                <p>No products found in <span className="text-white font-bold">"{selectedCategory}"</span>.</p>
+                <button onClick={() => setSelectedCategory("All")} className="mt-4 text-blue-400 hover:underline text-sm">Clear Filter</button>
+             </div>
+          )}
         </div>
       </section>
 
@@ -353,32 +412,63 @@ const Home = () => {
         </div> 
       </section>
 
-      {/* --- ADD TO CART POPUP --- */}
+      {/* --- ADD TO CART POPUP (MODAL STYLE) --- */}
       {showCartPopup && popupProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 sm:p-6 w-full max-w-sm shadow-2xl relative">
-            
-            <button onClick={() => setShowCartPopup(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
-              <FaTimes />
-            </button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          
+          {/* Backdrop with blur - Click to close */}
+          <div 
+            className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowCartPopup(false)}
+          ></div>
 
-            <div className="flex items-center gap-3 mb-4 text-emerald-400">
-              <div className="bg-emerald-500/20 p-2 rounded-full"><FaCheck size={14} /></div>
-              <h3 className="font-bold text-white text-lg">Added to Cart</h3>
+          {/* Modal Content */}
+          <div className="relative bg-slate-800 border border-slate-600 rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all scale-100 animate-fade-in-up">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3 text-emerald-400">
+                <div className="bg-emerald-500/10 p-2 rounded-full ring-1 ring-emerald-500/50">
+                   <FaCheck size={16} />
+                </div>
+                <h3 className="font-bold text-white text-lg">Added to Cart</h3>
+              </div>
+              <button 
+                onClick={() => setShowCartPopup(false)} 
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <FaTimes size={18} />
+              </button>
             </div>
 
-            <div className="flex gap-4 mb-6 bg-slate-700/30 p-3 rounded-xl">
-              <img src={popupProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"} alt={popupProduct.product_name} className="w-16 h-16 object-cover rounded-lg" />
-              <div>
-                <h4 className="font-semibold text-sm text-white line-clamp-1">{popupProduct.product_name}</h4>
+            {/* Product Info */}
+            <div className="flex gap-4 mb-6 bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
+              <img 
+                src={popupProduct.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"} 
+                alt={popupProduct.product_name} 
+                className="w-16 h-16 object-cover rounded-lg shadow-sm" 
+              />
+              <div className="flex flex-col justify-center">
+                <h4 className="font-semibold text-sm text-white line-clamp-1 pr-2">{popupProduct.product_name}</h4>
                 <p className="text-slate-400 text-xs mb-1">{popupProduct.product_department}</p>
                 <span className="text-blue-400 font-bold">₹{popupProduct.selling_unit_price.toFixed(2)}</span>
               </div>
             </div>
 
+            {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowCartPopup(false)} className="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition-all text-sm font-semibold">Keep Shopping</button>
-              <button onClick={() => navigate('/cart')} className="px-4 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-all text-sm font-semibold shadow-lg">Go to Cart</button>
+              <button 
+                onClick={() => setShowCartPopup(false)} 
+                className="px-4 py-3 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition-all text-sm font-semibold"
+              >
+                Keep Shopping
+              </button>
+              <button 
+                onClick={() => navigate('/cart')} 
+                className="px-4 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-500/20 transition-all text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                <FaShoppingCart size={14}/> View Cart
+              </button>
             </div>
           </div>
         </div>

@@ -9,6 +9,8 @@ import { setProfile, logout } from './slices/userSlice';
 import BouncingLoader from "./pages/BouncingLoader";
 import MainLayout from "./components/ui/MainLayout";
 import { Upload } from "lucide-react";
+
+// Lazy Imports
 const Home = lazy(() => import("./pages/Home"));
 const About = lazy(() => import("./pages/About"));
 const Contact = lazy(() => import("./pages/Contact"));
@@ -16,13 +18,17 @@ const Login = lazy(() => import("./pages/Login"));
 const Signup = lazy(() => import("./pages/Signup"));
 const Cart = lazy(() => import("./pages/Cart"));
 const Search = lazy(() => import("./pages/Search"));
-const AdminDashboard = lazy(() => import("./dashboards/AdminDashboard"));
 const PageNotFound = lazy(() => import("./pages/PageNotFound"));
-const UserDashboard = lazy(() => import("./dashboards/UserDashboard"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Shipping = lazy(() => import("./pages/Shipping"));
 const Payment = lazy(() => import("./pages/Payment"));
 const OrderSuccess = lazy(() => import("./pages/OrderSuccess")); 
+
+// Dashboards
+const AdminDashboard = lazy(() => import("./dashboards/AdminDashboard"));
+const UserDashboard = lazy(() => import("./dashboards/UserDashboard"));
+// --- NEW IMPORT ---
+const SuperAdminDashboard = lazy(() => import("./dashboards/SuperAdminDashboard")); 
 
 const LoadingFallback = () => (
    <BouncingLoader/>
@@ -48,7 +54,7 @@ function App() {
         dispatch(setProfile({
           uid: user.uid,
           email: user.email,
-          fullname: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(), // Combined name
+          fullname: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           mobile: userData.mobile || '',
@@ -79,8 +85,11 @@ function App() {
           <Route path="/payment" element={<Payment />} />
           <Route path="/order-success" element={<OrderSuccess />} />
 
+          {/* --- Dashboard Routes --- */}
           <Route path="/admindashboard" element={<AdminDashboard />} />
           <Route path="/userdashboard" element={<UserDashboard />} />
+          <Route path="/superadmindashboard" element={<SuperAdminDashboard />} /> 
+          
           <Route path="/upload" element={<Upload/>}/>
         </Route>
 

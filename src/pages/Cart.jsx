@@ -1,13 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { removeItem, updateQuantity, clearCart } from '../slices/cartSlice';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaTrash, FaMinus, FaPlus, FaArrowLeft, FaShoppingBag, FaCreditCard, FaLock } from 'react-icons/fa';
+import { 
+  FaTrash, FaMinus, FaPlus, FaArrowLeft, FaShoppingBag, 
+  FaCreditCard, FaLock, FaExclamationTriangle, FaTimes, FaUserCircle 
+} from 'react-icons/fa';
 
 const Cart = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // --- State for Custom Modals ---
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // 1. Get Cart Data from Redux
   const { items, totalQuantity, totalPrice } = useSelector((state) => state.cart || { items: [], totalQuantity: 0, totalPrice: 0 });
@@ -28,7 +35,9 @@ const Cart = () => {
   // --- Handlers ---
   const handleRemove = (id) => {
     dispatch(removeItem(id));
-    toast.info("Item removed from cart");
+    // Kept toast for single item removal as it's a minor action, 
+    // but you can remove this line if you want zero toasts.
+    toast.info("Item removed", { position: "bottom-right", theme: "dark", autoClose: 1000, hideProgressBar: true });
   };
 
   const handleDecrease = (id, quantity) => {
@@ -40,26 +49,29 @@ const Cart = () => {
     dispatch(updateQuantity({ id, quantity: quantity + 1 }));
   };
 
-  const handleClearCart = () => {
-    if (window.confirm("Are you sure you want to remove all items?")) {
-      dispatch(clearCart());
-      toast.info("Cart cleared");
-    }
+  // Open the Clear Cart Confirmation Modal
+  const handleClearCartClick = () => {
+    setShowClearModal(true);
+  };
+
+  // Actual Action: Clear Cart
+  const confirmClearCart = () => {
+    dispatch(clearCart());
+    setShowClearModal(false);
   };
 
   // --- CHECKOUT LOGIC ---
   const handleCheckout = () => {
     if (items.length === 0) {
-      toast.error("Your cart is empty!");
+      toast.error("Your cart is empty!", { position: "top-center", theme: "dark", autoClose: 1000 });
       return;
     }
 
     if (isLoggedIn) {
-      toast.success("Proceeding to checkout...");
       navigate('/shipping');
     } else {
-      toast.warn("Please login to complete your purchase");
-      navigate('/login');
+      // Show Custom Login Modal instead of Toast
+      setShowLoginModal(true);
     }
   };
 
@@ -101,13 +113,12 @@ const Cart = () => {
             {/* --- Left Column: Cart Items --- */}
             <div className="lg:col-span-2 space-y-4">
               {items.map((item) => (
-                // Changed Layout: Flex row on mobile too (Image Left, Text Right)
                 <div 
                   key={item.product_id}
                   className="group flex gap-3 sm:gap-6 bg-slate-900 p-3 sm:p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all relative"
                 >
                   
-                  {/* Product Image - Fixed size on mobile to prevent layout shifts */}
+                  {/* Product Image */}
                   <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white rounded-xl p-2 flex-shrink-0 self-center">
                     <img 
                       src={item.image_url} 
@@ -123,14 +134,13 @@ const Cart = () => {
                     <div>
                       <div className="flex justify-between items-start gap-2">
                         <h5 className="text-sm sm:text-lg font-bold text-white leading-tight line-clamp-2">{item.product_name}</h5>
-                        {/* Remove Button - Top Right on Mobile */}
-                         <button 
-                          onClick={() => handleRemove(item.product_id)}
-                          className="text-slate-500 hover:text-red-400 transition-colors p-1"
-                          aria-label="Remove item"
-                        >
-                          <FaTrash size={14} />
-                        </button>
+                          <button 
+                           onClick={() => handleRemove(item.product_id)}
+                           className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                           aria-label="Remove item"
+                         >
+                           <FaTrash size={14} />
+                         </button>
                       </div>
                       <p className="text-xs text-slate-400 mt-1 capitalize">{item.product_category}</p>
                     </div>
@@ -165,7 +175,7 @@ const Cart = () => {
 
               <div className="flex justify-end">
                 <button 
-                    onClick={handleClearCart}
+                    onClick={handleClearCartClick}
                     className="text-red-400 text-sm hover:text-red-300 hover:underline py-2 flex items-center gap-2 transition-colors"
                 >
                     <FaTrash size={12}/> Clear Cart
@@ -208,18 +218,78 @@ const Cart = () => {
                   {isLoggedIn ? <FaCreditCard /> : <FaLock />}
                   {isLoggedIn ? "Checkout Now" : "Login to Checkout"}
                 </button>
-                
-                {!isLoggedIn && (
-                   <p className="text-center text-xs text-slate-500 mt-3">
-                     You must be logged in to complete this purchase.
-                   </p>
-                )}
               </div>
             </div>
-
           </div>
         )}
       </div>
+
+      {/* --- CONFIRMATION MODAL (Clear Cart) --- */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowClearModal(false)}></div>
+          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in-up">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 mx-auto">
+              <FaExclamationTriangle className="text-red-500 text-xl" />
+            </div>
+            <h3 className="text-xl font-bold text-white text-center mb-2">Clear entire cart?</h3>
+            <p className="text-slate-400 text-center text-sm mb-6">
+              This will remove all {totalQuantity} items from your shopping bag. This action cannot be undone.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setShowClearModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition-all font-semibold text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmClearCart}
+                className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white transition-all font-semibold text-sm shadow-lg shadow-red-900/20"
+              >
+                Yes, Clear It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- LOGIN REQUIRED MODAL (Checkout) --- */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setShowLoginModal(false)}></div>
+          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in-up">
+            <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">
+               <FaTimes />
+            </button>
+            
+            <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-4 mx-auto">
+              <FaUserCircle className="text-blue-500 text-2xl" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white text-center mb-2">Login Required</h3>
+            <p className="text-slate-400 text-center text-sm mb-6">
+              Please sign in to your account to proceed with checkout and complete your order.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => navigate('/login')}
+                className="w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-all font-bold text-sm shadow-lg shadow-blue-900/20"
+              >
+                Login / Register
+              </button>
+              <button 
+                onClick={() => setShowLoginModal(false)}
+                className="w-full px-4 py-3 rounded-xl border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700 transition-all font-semibold text-sm"
+              >
+                Continue as Guest (Browse)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

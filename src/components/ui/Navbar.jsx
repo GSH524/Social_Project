@@ -19,7 +19,7 @@ import { Bell, X, Check, AlertCircle, Loader, Ticket, Package, Info } from 'luci
 // ==========================================
 //  INTERNAL COMPONENT: NAVBAR NOTIFICATIONS
 // ==========================================
-const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
+const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [processingId, setProcessingId] = useState(null);
@@ -41,13 +41,11 @@ const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
     if (!user) return;
     
     let q;
-    if (isAdmin) {
-      // Admin gets all admin-type notifications
+    // Super Admins & Admins see "admin" type notifications
+    if (isAdmin || isSuperAdmin) {
       q = query(collection(db, "notifications"), where("type", "==", "admin"));
     } else {
-      // Users get: 
-      // 1. Direct messages (recipientId == user.uid)
-      // 2. Broadcasts (recipientId == "all") like Coupons
+      // Regular Users
       q = query(
         collection(db, "notifications"), 
         where("recipientId", "in", [user.uid, "all"])
@@ -56,15 +54,15 @@ const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Filter out admin types for normal users just in case
-      const filteredNotes = isAdmin ? notes : notes.filter(n => n.type !== 'admin');
+      // Filter logic: Standard users shouldn't see admin notes if query didn't catch it
+      const filteredNotes = (isAdmin || isSuperAdmin) ? notes : notes.filter(n => n.type !== 'admin');
       
       // Sort by newest first
       filteredNotes.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setNotifications(filteredNotes);
     });
     return () => unsubscribe();
-  }, [user, isAdmin]);
+  }, [user, isAdmin, isSuperAdmin]);
 
   const markAsRead = async (id) => {
     try { await deleteDoc(doc(db, "notifications", id)); } 
@@ -106,7 +104,7 @@ const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
 
   // Helper to render icon based on notification type
   const renderIcon = (note) => {
-    if (isAdmin) return <AlertCircle size={16} className="text-amber-500"/>;
+    if (isAdmin || isSuperAdmin) return <AlertCircle size={16} className="text-amber-500"/>;
     if (note.subType === 'coupon') return <Ticket size={16} className="text-purple-400"/>;
     if (note.subType === 'order_update') return <Package size={16} className="text-blue-400"/>;
     return <Info size={16} className="text-slate-400"/>;
@@ -122,7 +120,7 @@ const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
       {isOpen && (
         <div className="absolute right-0 mt-3 w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[60] overflow-hidden animate-fade-in-up">
           <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
-            <h4 className="font-bold text-white text-sm">{isAdmin ? 'Admin Notifications' : 'Your Notifications'}</h4>
+            <h4 className="font-bold text-white text-sm">{(isAdmin || isSuperAdmin) ? 'Admin Alerts' : 'Notifications'}</h4>
             <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-500 hover:text-white"/></button>
           </div>
           
@@ -133,25 +131,25 @@ const NavbarNotifications = ({ user, isAdmin, onUpdateData }) => {
               notifications.map(note => (
                 <div key={note.id} className="p-4 border-b border-slate-700 hover:bg-slate-700/50 transition-colors flex flex-col gap-2">
                   <div className="flex justify-between items-start gap-3">
-                     <div className="mt-1">
+                      <div className="mt-1">
                         {renderIcon(note)}
-                     </div>
-                     <div className="flex-1">
+                      </div>
+                      <div className="flex-1">
                         <p className="text-sm text-slate-300 leading-snug">{note.message}</p>
                         <p className="text-[10px] text-slate-500 mt-1">{note.createdAt?.toDate ? note.createdAt.toDate().toLocaleString() : 'Just now'}</p>
-                     </div>
-                     <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400"><X size={14}/></button>
+                      </div>
+                      <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400"><X size={14}/></button>
                   </div>
                   
                   {/* Action Button for Admins (Return Requests) */}
-                  {isAdmin && note.subType === 'return_request' && (
-                     <button 
-                       onClick={() => handleAcceptReturn(note)}
-                       disabled={processingId === note.id}
-                       className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2"
-                     >
-                       {processingId === note.id ? <Loader className="animate-spin" size={12}/> : "Accept Return Request"}
-                     </button>
+                  {(isAdmin || isSuperAdmin) && note.subType === 'return_request' && (
+                      <button 
+                        onClick={() => handleAcceptReturn(note)}
+                        disabled={processingId === note.id}
+                        className="w-full py-1.5 mt-1 rounded bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors flex justify-center items-center gap-2"
+                      >
+                        {processingId === note.id ? <Loader className="animate-spin" size={12}/> : "Accept Return Request"}
+                      </button>
                   )}
                 </div>
               ))
@@ -177,7 +175,10 @@ const Navbar = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Role States
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const dropdownRef = useRef(null);
   const userIconRef = useRef(null);
@@ -194,8 +195,14 @@ const Navbar = () => {
       if (user) {
         localStorage.setItem("isAuthenticated", "true");
         
-        // Check Admin Role
-        const checkAdmin = user.email === "harigudipati666@gmail.com";
+        // --- ROLE CHECKS ---
+        const superAdminEmail = "gudipatisrihari6@gmail.com";
+        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "harigudipati666@gmail.com"; // Fallback if env missing
+
+        const checkSuperAdmin = user.email === superAdminEmail;
+        const checkAdmin = user.email === adminEmail;
+        
+        setIsSuperAdmin(checkSuperAdmin);
         setIsAdmin(checkAdmin);
 
         // Load Cart
@@ -217,6 +224,7 @@ const Navbar = () => {
         localStorage.removeItem("isAuthenticated");
         setProfileImage(null);
         setIsAdmin(false);
+        setIsSuperAdmin(false);
         dispatch(clearCart());
       }
     });
@@ -257,7 +265,6 @@ const Navbar = () => {
     await signOut(auth);
     localStorage.removeItem("isAuthenticated");
     dispatch(clearCart()); 
-    // Toast Notification
     toast.success("Logout Successfully", { theme: "dark", position: "top-center" });
     navigate("/");
   };
@@ -269,6 +276,13 @@ const Navbar = () => {
 
   const getDesktopClass = (path) => location.pathname === path ? "text-blue-500 font-bold transition-colors" : "text-slate-300 hover:text-white transition-colors";
   const getMobileClass = (path) => location.pathname === path ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
+
+  // Determine Dashboard Link
+  const getDashboardLink = () => {
+    if (isSuperAdmin) return "/superadmindashboard";
+    if (isAdmin) return "/admindashboard";
+    return "/userdashboard";
+  };
 
   return (
     <>
@@ -318,7 +332,7 @@ const Navbar = () => {
 
             {/* Notification Bell (Only if Auth) */}
             {isAuth && currentUser && (
-              <NavbarNotifications user={currentUser} isAdmin={isAdmin} />
+              <NavbarNotifications user={currentUser} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
             )}
 
             <Link to="/cart" className="relative group text-slate-300 hover:text-white transition-colors">
@@ -342,10 +356,12 @@ const Navbar = () => {
                 {showDropdown && (
                   <div ref={dropdownRef} className="absolute right-0 mt-3 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm animate-fade-in-up">
                     <div className="px-4 py-2 border-b border-slate-700">
-                       <p className="text-slate-400 text-xs">Signed in as</p>
-                       <p className="text-white font-medium truncate">{currentUser?.email}</p>
+                        <p className="text-slate-400 text-xs">Signed in as</p>
+                        <p className="text-white font-medium truncate">{currentUser?.email}</p>
+                        {isSuperAdmin && <span className="text-[10px] text-rose-400 font-bold uppercase">Super Admin</span>}
+                        {isAdmin && !isSuperAdmin && <span className="text-[10px] text-violet-400 font-bold uppercase">Admin</span>}
                     </div>
-                    <Link to={isAdmin ? "/admindashboard" : "/userdashboard"} className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</Link>
+                    <Link to={getDashboardLink()} className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</Link>
                     <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-red-400 hover:bg-slate-700 hover:text-red-300">Sign out</button>
                   </div>
                 )}
@@ -383,7 +399,7 @@ const Navbar = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-base font-medium text-white truncate">{currentUser?.email}</div>
-                    <Link to={isAdmin ? "/admindashboard" : "/userdashboard"} className="text-sm text-blue-400 hover:text-blue-300 block">View Dashboard</Link>
+                    <Link to={getDashboardLink()} className="text-sm text-blue-400 hover:text-blue-300 block">View Dashboard</Link>
                   </div>
                   <button onClick={handleLogout} className="text-red-400 text-sm hover:text-red-300">Logout</button>
                 </div>
@@ -402,4 +418,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default Navbar;  
