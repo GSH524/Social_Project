@@ -15,6 +15,7 @@ const Signup = () => {
   const [mobile, setMobile] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
+  const [pincode, setPincode] = useState(""); 
   const [country, setCountry] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -84,6 +85,7 @@ const Signup = () => {
         mobile,
         address,
         city,
+        pincode,
         country,
         profileImage: image,
         createdAt: new Date(),
@@ -105,6 +107,23 @@ const Signup = () => {
       radial-gradient(at bottom right, #2e2e5e 0%, transparent 50%),
       #2b213a`
   };
+
+  // Helper component for cleaner code
+  const InputField = ({ icon: Icon, type, placeholder, value, setValue, required = true }) => (
+    <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
+      <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white">
+        <Icon />
+      </span>
+      <input 
+        type={type} 
+        placeholder={placeholder} 
+        value={value} 
+        onChange={(e) => setValue(e.target.value)} 
+        required={required}
+        className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-white/60 min-w-0"
+      />
+    </div>
+  );
 
   return (
     <div 
@@ -152,126 +171,69 @@ const Signup = () => {
             <input id="file-upload" type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
           </div>
 
-          {/* Input Fields */}
-          <div className="space-y-4 sm:space-y-5">
+          {/* Input Fields Container */}
+          <div className="space-y-4">
             
-            {/* First Name */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaUser /></span>
-              <input 
-                type="text" 
-                placeholder="First Name" 
-                value={firstName} 
-                onChange={(e) => setFirstName(e.target.value)} 
-                required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
-              />
-            </div>
-
-            {/* Last Name */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaUser /></span>
-              <input 
-                type="text" 
-                placeholder="Last Name" 
-                value={lastName} 
-                onChange={(e) => setLastName(e.target.value)} 
-                required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
-              />
+            {/* Row 1: First Name & Last Name (Side by Side) */}
+            <div className="flex gap-4">
+               <InputField icon={FaUser} type="text" placeholder="First Name" value={firstName} setValue={setFirstName} />
+               <InputField icon={FaUser} type="text" placeholder="Last Name" value={lastName} setValue={setLastName} />
             </div>
 
             {/* Email */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaEnvelope /></span>
-              <input 
-                type="email" 
-                placeholder="Email Address" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
-              />
-            </div>
+            <InputField icon={FaEnvelope} type="email" placeholder="Email Address" value={email} setValue={setEmail} />
 
             {/* Mobile */}
             <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center transform -scale-x-100 group-focus-within:text-white"><FaPhone /></span>
+              <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 transform -scale-x-100 group-focus-within:text-white"><FaPhone /></span>
               <input 
                 type="tel" 
                 placeholder="Mobile Number" 
                 value={mobile} 
                 onChange={(e) => setMobile(e.target.value)} 
                 required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
+                className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-white/60 min-w-0"
               />
             </div>
 
             {/* Address */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaMapMarkerAlt /></span>
-              <input 
-                type="text" 
-                placeholder="Address" 
-                value={address} 
-                onChange={(e) => setAddress(e.target.value)} 
-                required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
-              />
-            </div>
+            <InputField icon={FaMapMarkerAlt} type="text" placeholder="Address" value={address} setValue={setAddress} />
 
-            {/* City */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaBuilding /></span>
-              <input 
-                type="text" 
-                placeholder="City" 
-                value={city} 
-                onChange={(e) => setCity(e.target.value)} 
-                required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
-              />
+            {/* Row 2: City & Pincode (Side by Side) */}
+            <div className="flex gap-4">
+               <InputField icon={FaBuilding} type="text" placeholder="City" value={city} setValue={setCity} />
+               <InputField icon={FaMapMarkerAlt} type="text" placeholder="Pincode" value={pincode} setValue={setPincode} />
             </div>
 
             {/* Country */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaGlobe /></span>
-              <input 
-                type="text" 
-                placeholder="Country" 
-                value={country} 
-                onChange={(e) => setCountry(e.target.value)} 
-                required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
-              />
-            </div>
+            <InputField icon={FaGlobe} type="text" placeholder="Country" value={country} setValue={setCountry} />
 
-            {/* Password */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaLock /></span>
+            {/* Password (Full Width) */}
+            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
+              <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white"><FaLock /></span>
               <input 
                 type={showPassword ? "text" : "password"} 
                 placeholder="Password" 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
+                className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-white/60 min-w-0"
               />
               <span className="cursor-pointer text-white/70 hover:text-white ml-2 transition-colors" onClick={() => setShowPassword(!showPassword)}>
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </span>
             </div>
 
-            {/* Confirm Password */}
-            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
-              <span className="text-white/80 mr-3 sm:mr-4 text-base sm:text-lg w-5 sm:w-6 flex justify-center group-focus-within:text-white"><FaLock /></span>
+            {/* Confirm Password (Full Width - New Line) */}
+            <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
+              <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white"><FaLock /></span>
               <input 
                 type={showConfirmPassword ? "text" : "password"} 
                 placeholder="Confirm Password" 
                 value={confirmPassword} 
                 onChange={(e) => setConfirmPassword(e.target.value)} 
                 required 
-                className="flex-1 bg-transparent border-none outline-none text-white text-sm sm:text-base font-medium placeholder-white/60"
+                className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-white/60 min-w-0"
               />
               <span className="cursor-pointer text-white/70 hover:text-white ml-2 transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                 {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
@@ -282,7 +244,7 @@ const Signup = () => {
 
           <button 
             type="submit" 
-            className="mt-6 w-full py-3 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 text-white text-base sm:text-lg font-bold shadow-[0_5px_15px_rgba(37,117,252,0.4)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(37,117,252,0.6)] active:translate-y-0 tracking-wide"
+            className="mt-4 w-full py-3 rounded-full bg-gradient-to-r from-violet-600 to-blue-500 text-white text-base sm:text-lg font-bold shadow-[0_5px_15px_rgba(37,117,252,0.4)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(37,117,252,0.6)] active:translate-y-0 tracking-wide"
           >
             SIGN UP
           </button>

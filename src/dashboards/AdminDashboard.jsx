@@ -6,7 +6,8 @@ import {
 } from 'chart.js';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, Settings, FileText,
-  BarChart2, Menu, X, User, Camera, Loader, Calendar, Ticket, MapPin, Trophy, TrendingUp, AlertTriangle, Search
+  BarChart2, Menu, X, User, Camera, Loader, Calendar, Ticket, MapPin, 
+  Trophy, TrendingUp, AlertTriangle, Search, Crown // ✅ Added Crown
 } from 'lucide-react';
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc, collection, getDocs, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
@@ -311,6 +312,7 @@ const AdminDashboard = () => {
   }, [filteredOrders, addressIdMap, extractPincode, returnSearch]);
 
   const advancedStats = useMemo(() => {
+      // 1. Item Counts for Top Product
       const itemCounts = {};
       allItems.forEach(item => {
           const pid = String(item.product_id); 
@@ -326,6 +328,7 @@ const AdminDashboard = () => {
 
       const topProduct = products.find(p => String(p.product_id) === topProductId);
 
+      // 2. Pincode Stats
       const pincodeStatsData = {};
       filteredOrders.forEach(order => {
           let pincode = "Unknown";
@@ -355,8 +358,46 @@ const AdminDashboard = () => {
         .map(([pin, data]) => ({ pincode: pin, ...data }))
         .sort((a,b) => b.sales - a.sales);
 
-      return { topProduct, maxQty, pincodeStats };
-  }, [allItems, products, filteredOrders, addressIdMap, extractPincode]);
+      // 3. Top Customer Calculation (New)
+      const customerStats = {};
+      filteredOrders.forEach(o => {
+          if(o.order_status !== 'Cancelled' && o.order_status !== 'Returned') {
+              const key = o.userId || o.customer_id; // Use Name or ID
+              if(!customerStats[key]) {
+                  customerStats[key] = { spend: 0, orders: 0, name: o.customer_id, id: o.userId };
+              }
+              customerStats[key].spend += Number(o.order_total_amount);
+              customerStats[key].orders += 1;
+          }
+      });
+
+      let topCustKey = null;
+      let maxCustSpend = 0;
+      Object.entries(customerStats).forEach(([key, stats]) => {
+          if(stats.spend > maxCustSpend) {
+              maxCustSpend = stats.spend;
+              topCustKey = key;
+          }
+      });
+
+      let topCustomer = null;
+      if(topCustKey) {
+          const stats = customerStats[topCustKey];
+          // Try to match with full customer DB to get image
+          const custDetails = customers.find(c => String(c.customer_id) === String(stats.id)) 
+                           || customers.find(c => c.customer_full_name === stats.name);
+          
+          topCustomer = {
+              firstName: custDetails ? custDetails.customer_full_name.split(' ')[0] : stats.name.split(' ')[0],
+              lastName: custDetails ? (custDetails.customer_full_name.split(' ').slice(1).join(' ') || '') : '',
+              profileImage: custDetails?.customer_image_url || null,
+              spend: stats.spend,
+              orders: stats.orders
+          };
+      }
+
+      return { topProduct, maxQty, pincodeStats, topCustomer };
+  }, [allItems, products, filteredOrders, addressIdMap, extractPincode, customers]);
 
   const displayedPincodeStats = useMemo(() => {
     if (!pincodeSearch) return advancedStats.pincodeStats.slice(0, 5);
@@ -519,6 +560,38 @@ const AdminDashboard = () => {
                       <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mt-1">{stat.label}</p>
                     </div>
                   ))}
+                 </div>
+
+                 {/* Top Performer Cards */}
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Highest Purchased Customer */}
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex items-center gap-6 shadow-xl">
+                        <div className="absolute top-0 right-0 p-4 opacity-5"><Users size={120} /></div>
+                        {advancedStats.topCustomer ? (
+                            <>
+                                <div className="relative">
+                                    <div className="w-20 h-20 rounded-full bg-slate-800 p-1 border-2 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                                        {advancedStats.topCustomer.profileImage ? 
+                                            <img src={advancedStats.topCustomer.profileImage} alt="User" className="w-full h-full rounded-full object-cover"/> :
+                                            <div className="w-full h-full rounded-full bg-slate-700 flex items-center justify-center text-2xl font-bold text-slate-400">{advancedStats.topCustomer.firstName?.[0]}</div>
+                                        }
+                                    </div>
+                                    <div className="absolute -top-2 -right-2 bg-amber-500 text-black p-1.5 rounded-full shadow-lg"><Crown size={14} fill="black"/></div>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-amber-500 font-bold uppercase tracking-widest mb-1">Highest Spender</p>
+                                    <h3 className="text-2xl font-bold text-white">{advancedStats.topCustomer.firstName} {advancedStats.topCustomer.lastName}</h3>
+                                    <div className="flex items-center gap-4 mt-2">
+                                        <div><p className="text-xs text-slate-400">Total Spent</p><p className="text-lg font-bold text-emerald-400">₹{advancedStats.topCustomer.spend.toLocaleString()}</p></div>
+                                        <div className="w-px h-8 bg-slate-700"></div>
+                                        <div><p className="text-xs text-slate-400">Orders</p><p className="text-lg font-bold text-white">{advancedStats.topCustomer.orders}</p></div>
+                                    </div>
+                                </div>
+                            </>
+                        ) : <div className="text-slate-500 flex items-center gap-2"><Loader className="animate-spin"/> Calculating Top Customer...</div>}
+                    </div>
+                    {/* Placeholder for second card if needed */}
+                    <div className="hidden lg:block"></div> 
                  </div>
 
                  {/* Charts Grid - Responsive Stacking */}

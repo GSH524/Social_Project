@@ -187,9 +187,11 @@ const AdminCustomers = ({ initialCustomers, orders = [], onUpdate }) => {
   // 4. ZONE B: CUSTOMER LIST (SEARCH ONLY - Unfiltered by Date)
   // ==================================================================================
   const displayedCustomers = useMemo(() => {
+      const lowerSearch = searchTerm.toLowerCase();
       const list = allMergedCustomers.filter(c => 
-          c.customer_full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-          c.customer_email?.toLowerCase().includes(searchTerm.toLowerCase())
+          (c.customer_full_name && c.customer_full_name.toLowerCase().includes(lowerSearch)) || 
+          (c.customer_email && c.customer_email.toLowerCase().includes(lowerSearch)) ||
+          (c.customer_id && String(c.customer_id).toLowerCase().includes(lowerSearch))
       );
 
       const startIndex = (currentPage - 1) * itemsPerPage;
