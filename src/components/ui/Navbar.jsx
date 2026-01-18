@@ -14,7 +14,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // --- ICONS FOR NOTIFICATIONS ---
-import { Bell, X, Check, AlertCircle, Loader, Ticket, Package, Info } from 'lucide-react';
+import { Bell, X, Ticket, Package, Info, AlertCircle, Loader } from 'lucide-react';
 
 // ==========================================
 //  INTERNAL COMPONENT: NAVBAR NOTIFICATIONS
@@ -118,27 +118,31 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[60] overflow-hidden animate-fade-in-up">
+        // Mobile Responsive Dropdown: 
+        // right-[-60px] pulls it slightly left on mobile so it doesn't get cut off
+        // w-[90vw] ensures it fits on small screens
+        // sm:right-0 sm:w-80 restores standard desktop sizing
+        <div className="absolute top-12 right-[-60px] sm:right-0 w-[90vw] max-w-[340px] sm:w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[60] overflow-hidden animate-fade-in-up">
           <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
             <h4 className="font-bold text-white text-sm">{(isAdmin || isSuperAdmin) ? 'Admin Alerts' : 'Notifications'}</h4>
             <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-500 hover:text-white"/></button>
           </div>
           
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[60vh] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500 italic">No new notifications</div>
             ) : (
               notifications.map(note => (
                 <div key={note.id} className="p-4 border-b border-slate-700 hover:bg-slate-700/50 transition-colors flex flex-col gap-2">
                   <div className="flex justify-between items-start gap-3">
-                      <div className="mt-1">
+                      <div className="mt-1 flex-shrink-0">
                         {renderIcon(note)}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm text-slate-300 leading-snug">{note.message}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-300 leading-snug break-words">{note.message}</p>
                         <p className="text-[10px] text-slate-500 mt-1">{note.createdAt?.toDate ? note.createdAt.toDate().toLocaleString() : 'Just now'}</p>
                       </div>
-                      <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400"><X size={14}/></button>
+                      <button onClick={() => markAsRead(note.id)} className="text-slate-500 hover:text-rose-400 flex-shrink-0"><X size={14}/></button>
                   </div>
                   
                   {/* Action Button for Admins (Return Requests) */}
@@ -197,7 +201,7 @@ const Navbar = () => {
         
         // --- ROLE CHECKS ---
         const superAdminEmail = "gudipatisrihari6@gmail.com";
-        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "harigudipati666@gmail.com"; // Fallback if env missing
+        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "harigudipati666@gmail.com"; 
 
         const checkSuperAdmin = user.email === superAdminEmail;
         const checkAdmin = user.email === adminEmail;
@@ -287,21 +291,23 @@ const Navbar = () => {
   return (
     <>
     <ToastContainer />
+    {/* Height adjusted for mobile (h-16) vs desktop (h-20) */}
     <nav className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 font-sans shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 gap-8">
+        <div className="flex items-center justify-between h-16 md:h-20 gap-4 md:gap-8">
 
           {/* Logo */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-2 group">
             <div className="flex flex-col">
-              <span className="text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors">
+              {/* Responsive Text Size */}
+              <span className="text-xl md:text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors whitespace-nowrap">
                 GSH<span className="text-blue-500">.</span>STORE
               </span>
-              <span className="text-[10px] tracking-widest text-slate-400 uppercase -mt-1">Premium Collection</span>
+              <span className="text-[8px] md:text-[10px] tracking-widest text-slate-400 uppercase -mt-1 hidden sm:block">Premium Collection</span>
             </div>
           </Link>
 
-          {/* Search Bar */}
+          {/* Search Bar (Desktop) */}
           <div className="hidden md:flex flex-1 max-w-lg mx-auto">
             <form onSubmit={handleSearch} className="w-full relative flex items-center">
               <input
@@ -324,27 +330,25 @@ const Navbar = () => {
             <Link to="/contact" className={getDesktopClass("/contact")}>Contact</Link>
           </div>
 
-          {/* Icons */}
-          <div className="flex items-center gap-5">
-            <button className="md:hidden text-slate-300 hover:text-white" onClick={() => setIsOpen(!isOpen)}>
-              <FaSearch size={20} />
-            </button>
+          {/* Icons Section */}
+          <div className="flex items-center gap-3 md:gap-5">
+            {/* Removed Mobile Search Icon: Redundant because Hamburger menu has search inside it */}
 
             {/* Notification Bell (Only if Auth) */}
             {isAuth && currentUser && (
               <NavbarNotifications user={currentUser} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
             )}
 
-            <Link to="/cart" className="relative group text-slate-300 hover:text-white transition-colors">
-              <FaShoppingCart size={22} />
+            <Link to="/cart" className="relative group text-slate-300 hover:text-white transition-colors p-1">
+              <FaShoppingCart size={20} className="md:w-[22px] md:h-[22px]" />
               {totalQuantity > 0 && (
-                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center border-2 border-slate-900">
+                <span className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-blue-600 text-white text-[10px] font-bold h-4 w-4 md:h-5 md:w-5 rounded-full flex items-center justify-center border-2 border-slate-900">
                   {totalQuantity}
                 </span>
               )}
             </Link>
 
-            {/* Profile Dropdown */}
+            {/* Desktop Profile Dropdown */}
             {isAuth ? (
               <div className="relative hidden md:block">
                 <button ref={userIconRef} onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-2 focus:outline-none">
@@ -367,13 +371,15 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
+              // Desktop User Icon
               <button onClick={() => navigate("/login")} className="hidden md:block text-slate-300 hover:text-white transition-colors">
                  <FaUser size={22} />
               </button>
             )}
 
-            <button className="md:hidden text-slate-300" onClick={() => setIsOpen(!isOpen)}>
-              {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
+            {/* Mobile Hamburger */}
+            <button className="md:hidden text-slate-300 p-1" onClick={() => setIsOpen(!isOpen)}>
+              {isOpen ? <FaTimes size={22} /> : <FaBars size={22} />}
             </button>
           </div>
         </div>
@@ -381,32 +387,42 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-slate-800 border-t border-slate-700">
+        <div className="md:hidden bg-slate-800 border-t border-slate-700 absolute w-full left-0 z-40 shadow-xl">
           <div className="px-4 pt-4 pb-6 space-y-4">
+            
+            {/* Mobile Search Input */}
             <form onSubmit={handleSearch} className="flex items-center">
-               <input type="text" placeholder="Search..." className="w-full bg-slate-900 text-white rounded-lg px-4 py-2.5 text-sm border border-slate-700 outline-none focus:border-blue-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/>
+               <input 
+                  type="text" 
+                  placeholder="Search products..." 
+                  className="w-full bg-slate-900 text-white rounded-lg px-4 py-3 text-sm border border-slate-700 outline-none focus:border-blue-500" 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)}
+               />
             </form>
+
             <div className="flex flex-col space-y-1">
-              <Link to="/" className={getMobileClass("/")}>Home</Link>
-              <Link to="/about" className={getMobileClass("/about")}>About</Link>
-              <Link to="/contact" className={getMobileClass("/contact")}>Contact</Link>
+              <Link to="/" className={getMobileClass("/")} onClick={() => setIsOpen(false)}>Home</Link>
+              <Link to="/about" className={getMobileClass("/about")} onClick={() => setIsOpen(false)}>About</Link>
+              <Link to="/contact" className={getMobileClass("/contact")} onClick={() => setIsOpen(false)}>Contact</Link>
             </div>
+
             <div className="border-t border-slate-700 pt-4">
               {isAuth ? (
-                <div className="flex items-center gap-3 px-3">
-                  <div className="h-10 w-10 rounded-full bg-slate-600 overflow-hidden flex items-center justify-center">
+                <div className="flex items-center gap-3 px-1">
+                  <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-600 overflow-hidden flex items-center justify-center">
                     {profileImage ? <img src={profileImage} alt="profile" className="w-full h-full object-cover"/> : <FaUser className="text-white"/>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-base font-medium text-white truncate">{currentUser?.email}</div>
-                    <Link to={getDashboardLink()} className="text-sm text-blue-400 hover:text-blue-300 block">View Dashboard</Link>
+                    <div className="text-sm font-medium text-white truncate">{currentUser?.email}</div>
+                    <Link to={getDashboardLink()} onClick={() => setIsOpen(false)} className="text-sm text-blue-400 hover:text-blue-300 block mt-0.5">View Dashboard</Link>
                   </div>
-                  <button onClick={handleLogout} className="text-red-400 text-sm hover:text-red-300">Logout</button>
+                  <button onClick={() => { handleLogout(); setIsOpen(false); }} className="text-red-400 text-sm hover:text-red-300 font-medium whitespace-nowrap">Logout</button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4 px-3">
-                   <Link to="/login" className="text-center py-2 bg-slate-700 text-white rounded hover:bg-slate-600 font-medium">Login</Link>
-                   <Link to="/signup" className="text-center py-2 bg-blue-600 text-white rounded hover:bg-blue-500 font-medium">Sign Up</Link>
+                <div className="grid grid-cols-2 gap-4">
+                   <Link to="/login" onClick={() => setIsOpen(false)} className="text-center py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 font-medium text-sm">Login</Link>
+                   <Link to="/signup" onClick={() => setIsOpen(false)} className="text-center py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-medium text-sm">Sign Up</Link>
                 </div>
               )}
             </div>
@@ -418,4 +434,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;  
+export default Navbar;
