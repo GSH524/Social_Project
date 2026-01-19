@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import toast, { Toaster } from 'react-hot-toast'; // ✅ React Hot Toast
+import toast, { Toaster } from 'react-hot-toast'; 
 
 // Firebase & Redux
 import { auth, db } from "../firebase";
@@ -17,12 +17,12 @@ import {
 // Data
 import { products } from "../data/dataUtils";
 
-// --- COMPONENT: PRODUCT CARD (UPDATED) ---
+// --- COMPONENT: PRODUCT CARD (REDESIGNED) ---
 const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   
   const getProductImage = (p) => {
     if (p.image_url) return p.image_url;
-    // Fallback images based on category/department
+    // Fallback logic
     if (p.product_category === "Accessories") return "https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?q=80&w=2070&auto=format&fit=crop";
     else if (p.product_category === "Jeans") return "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=1974&auto=format&fit=crop";
     else if (p.product_category === "Dresses") return "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=2083&auto=format&fit=crop";
@@ -42,51 +42,68 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   );
 
   return (
-    // ✅ Added 'transform hover:scale-105 hover:z-10' for enlargement effect
-    <div className="group bg-slate-800 rounded-xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/20 flex flex-col h-full transform hover:scale-105 hover:z-10 relative">
+    <div className="group bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-900/10 flex flex-col h-full relative">
       
-      {/* Image Section */}
-      <div className="relative h-40 sm:h-64 overflow-hidden bg-slate-700">
+      {/* --- Image Section --- */}
+      <div className="relative h-48 sm:h-64 overflow-hidden bg-slate-700">
         <img 
           src={getProductImage(product)} 
           alt={product.product_name} 
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+          className="w-full h-full object-cover" 
           onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"; }} 
         />
         
-        {/* Rating Badge */}
-        <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full flex items-center gap-1 border border-white/10 z-10 shadow-lg">
-          <div className="flex gap-0.5">{renderStars(product.product_rating || 0)}</div>
-          <span className="text-[8px] sm:text-[9px] font-bold text-slate-200 mt-0.5">({product.product_rating || 0})</span>
-        </div>
-
-        {/* Desktop Overlay Button */}
-        {!isAdmin && (
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent flex items-end justify-center pb-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hidden sm:flex">
-            <button onClick={() => onBuyNow(product)} className="flex items-center gap-1 bg-white text-slate-900 px-4 py-1.5 rounded-full font-bold text-xs hover:bg-blue-500 hover:text-white transition-colors shadow-lg transform active:scale-95">
-              <FaBolt size={12}/> Buy Now
-            </button>
-          </div>
-        )}
+        {/* Department Badge (Top Left) */}
+        <span className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-md text-slate-200 text-[10px] font-bold px-2 py-1 rounded-md border border-white/10 uppercase tracking-wider">
+           {product.product_department}
+        </span>
       </div>
 
-      {/* Details Section */}
-      <div className="p-3 sm:p-4 flex flex-col flex-grow">
-        <span className="text-[9px] sm:text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">{product.product_department}</span>
-        <h3 className="text-xs sm:text-base font-semibold text-white mb-2 line-clamp-2 group-hover:text-blue-400 transition-colors leading-tight h-8 sm:h-10">{product.product_name}</h3>
+      {/* --- Content Section --- */}
+      <div className="p-4 flex flex-col flex-grow">
         
-        <div className="mt-auto flex justify-between items-center border-t border-slate-700 pt-3">
-          <span className="text-sm sm:text-lg font-bold text-slate-100">₹{product.selling_unit_price.toFixed(2)}</span>
-          
-          {!isAdmin && (
-            <button 
-              onClick={() => onAddToCart(product)} 
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-600 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:border-blue-600 hover:text-white transition-all duration-300 active:scale-90"
-            >
-              <FaShoppingCart size={10} className="sm:text-xs" />
-            </button>
-          )}
+        {/* Category & Title */}
+        <div className="mb-2">
+            <p className="text-xs text-slate-400 mb-1 capitalize">{product.product_category}</p>
+            <h3 className="text-sm sm:text-base font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem] group-hover:text-blue-400 transition-colors">
+                {product.product_name}
+            </h3>
         </div>
+
+        {/* Price & Rating Row */}
+        <div className="flex items-center justify-between mb-4 mt-auto">
+            <div className="flex flex-col">
+                <span className="text-lg sm:text-xl font-bold text-white">₹{product.selling_unit_price.toFixed(2)}</span>
+            </div>
+            {/* Rating */}
+            <div className="flex flex-col items-end">
+                <div className="flex gap-0.5 mb-1">{renderStars(product.product_rating || 0)}</div>
+                <span className="text-[10px] text-slate-400">({product.product_rating || 0} Reviews)</span>
+            </div>
+        </div>
+
+        {/* --- VISIBLE ACTION BUTTONS --- */}
+        {!isAdmin ? (
+            <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-700/50">
+                <button 
+                    onClick={() => onAddToCart(product)}
+                    className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold py-2.5 rounded-lg transition-all active:scale-95 border border-slate-600 hover:border-slate-500"
+                >
+                    <FaShoppingCart size={14} className="text-blue-400"/> Add
+                </button>
+                
+                <button 
+                    onClick={() => onBuyNow(product)}
+                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold py-2.5 rounded-lg shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                >
+                    <FaBolt size={14} /> Buy
+                </button>
+            </div>
+        ) : (
+            <div className="mt-2 pt-3 border-t border-slate-700/50 text-center">
+                <span className="text-xs font-mono text-slate-500">Admin Mode (Read Only)</span>
+            </div>
+        )}
       </div>
     </div>
   );
@@ -106,23 +123,12 @@ const Home = () => {
   const [activeCoupon, setActiveCoupon] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
-  // --- 1. DEPARTMENTS LIST ---
+  // Lists
   const departments = ["All", "Men", "Women", "Kids"];
-
-  // --- 2. SPECIFIC CATEGORIES LIST ---
   const shopCategories = [
-    "Jeans",
-    "Shorts",
-    "Dresses",
-    "Skirts",
-    "Swim",
-    "Socks",
-    "Maternity",
-    "Suits",
-    "Intimates",
-    "Pants & Capris",
-    "Fashion Hoodies & Sweatshirts",
-    "Plus"
+    "Jeans", "Shorts", "Dresses", "Skirts", "Swim", "Socks", 
+    "Maternity", "Suits", "Intimates", "Pants & Capris", 
+    "Fashion Hoodies & Sweatshirts", "Plus"
   ];
 
   // Admin Check
@@ -179,13 +185,13 @@ const Home = () => {
 
   // --- DATA FILTERING ---
   const filteredProducts = selectedCategory === "All"
-      ? products.slice(0, 8)
+      ? products.slice(0,8)
       : products.filter((p) => 
           p.product_department === selectedCategory || 
           p.product_category === selectedCategory
         ).slice(0, 8);
 
-  const trendingProducts = products.slice(8, 20);
+  const trendingProducts = products.slice(8, 16);
 
   // Handlers
   const handleAddToCart = (product) => {
@@ -215,9 +221,8 @@ const Home = () => {
     if (activeCoupon && !isOfferClaimed) {
         setIsOfferClaimed(true);
         navigator.clipboard.writeText(activeCoupon.code);
-        // ✅ React Hot Toast
         toast.success(`Code ${activeCoupon.code} copied!`, {
-            style: { background: '#1e293b', color: '#fff' }
+           style: { background: '#1e293b', color: '#fff' }
         });
     } else if (isOfferClaimed) {
         toast("Already claimed.", { icon: 'ℹ️', style: { background: '#1e293b', color: '#fff' } });
@@ -227,12 +232,11 @@ const Home = () => {
   return (
     <main className="min-h-screen bg-slate-900 text-slate-50 font-sans selection:bg-blue-500 selection:text-white overflow-x-hidden">
       
-      {/* ✅ Toaster */}
       <Toaster position="top-center" />
 
       {/* --- HERO SECTION --- */}
       <section className="relative min-h-[600px] md:h-[90vh] flex items-center justify-center text-center px-4">
-        <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat md:bg-fixed" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop")' }}></div>
+        <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat md:bg-fixed" style={{ backgroundImage: 'url("https://wallpapercave.com/wp/wp8036239.jpg")' }}></div>
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40"></div>
         
         <div className="relative z-20 max-w-4xl animate-fade-in-up px-2 sm:px-4">
@@ -308,13 +312,13 @@ const Home = () => {
       </section>
 
       {/* --- MAIN PRODUCT GRID --- */}
-      <section className="max-w-7xl mx-auto px-4 pb-16">
+      <section className="max-w-7xl mx-auto px-6 pb-16">
         {/* Dynamic Title based on selection */}
         <h3 className="text-lg font-bold text-slate-400 mb-6 border-l-4 border-blue-500 pl-3">
             Showing results for: <span className="text-white">{selectedCategory}</span>
         </h3>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
           {filteredProducts.map((p) => (
             <ProductCard 
               key={p.product_id} 
@@ -324,7 +328,7 @@ const Home = () => {
               onBuyNow={handleBuyNow} 
             />
           ))}
-          {/* Empty State if no products match filter */}
+          
           {filteredProducts.length === 0 && (
              <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500 bg-slate-800/20 rounded-xl border border-dashed border-slate-700">
                 <FaUndo className="text-3xl mb-3 opacity-50"/>
@@ -368,7 +372,7 @@ const Home = () => {
             <FaFire className="text-orange-500 text-xl sm:text-2xl"/>
             <h2 className="text-2xl sm:text-3xl font-bold text-white">Trending Now</h2>
          </div>
-         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8">
+         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
             {trendingProducts.map((p) => (
                <ProductCard key={p.product_id} product={p} isAdmin={isAdmin} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />
             ))}
@@ -410,7 +414,7 @@ const Home = () => {
       {showCartPopup && popupProduct && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           
-          {/* Backdrop with blur - Click to close */}
+          {/* Backdrop */}
           <div 
             className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity"
             onClick={() => setShowCartPopup(false)}

@@ -2,7 +2,7 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { removeItem, updateQuantity, clearCart } from '../slices/cartSlice';
 import { useNavigate } from 'react-router-dom';
-import toast, { Toaster } from 'react-hot-toast'; // ✅ Import React Hot Toast
+import toast, { Toaster } from 'react-hot-toast';
 import { 
   FaTrash, FaMinus, FaPlus, FaArrowLeft, FaShoppingBag, 
   FaCreditCard, FaLock, FaExclamationTriangle, FaUserCircle 
@@ -31,7 +31,6 @@ const Cart = () => {
   // --- Handlers ---
   const handleRemove = (id) => {
     dispatch(removeItem(id));
-    // Standard Success Toast
     toast.success("Item removed from cart", {
       icon: '🗑️',
       style: {
@@ -81,9 +80,9 @@ const Cart = () => {
         </div>
       </div>
     ), {
-      duration: 5000, // Give user time to decide
+      duration: 5000,
       style: {
-        background: '#0f172a', // Darker background for modal feel
+        background: '#0f172a',
         border: '1px solid #334155',
         color: '#fff',
         padding: '16px',
@@ -93,7 +92,7 @@ const Cart = () => {
     });
   };
 
-  // --- INTERACTIVE TOAST: Login Required ---
+  // --- UPDATED: Checkout Handler ---
   const handleCheckout = () => {
     if (items.length === 0) {
       toast.error("Your cart is empty!", {
@@ -105,36 +104,33 @@ const Cart = () => {
     if (isLoggedIn) {
       navigate('/shipping');
     } else {
+      // ✅ CHANGED: Removed Guest Option, Enforced Login Message
       toast((t) => (
         <div className="flex flex-col gap-3 min-w-[260px]">
            <div className="flex items-center gap-3">
               <div className="bg-blue-500/20 p-2 rounded-full text-blue-500"><FaUserCircle size={20} /></div>
               <div>
                   <h4 className="font-bold text-white text-sm">Login Required</h4>
-                  <p className="text-[10px] text-slate-400">Sign in to checkout.</p>
+                  <p className="text-[11px] text-slate-400">Please login to checkout your items.</p>
               </div>
            </div>
+           
            <div className="flex flex-col gap-2 mt-1">
               <button 
                 onClick={() => { toast.dismiss(t.id); navigate('/login'); }}
                 className="w-full py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20"
               >
-                Login / Register
+                Login to Checkout
               </button>
-              <button 
-                onClick={() => { toast.dismiss(t.id); /* Add Guest logic if needed */ }}
-                className="w-full py-2 rounded-lg border border-slate-600 text-slate-300 text-xs hover:bg-slate-700 transition-colors"
-              >
-                Continue as Guest
-              </button>
+              {/* ❌ Removed "Continue as Guest" Button here */}
            </div>
         </div>
       ), {
-        duration: 6000,
-        position: 'top-center', // Show this important one in the center top
+        duration: 5000,
+        position: 'top-center',
         style: {
           background: '#0f172a',
-          border: '1px solid #3b82f6', // Blue border for emphasis
+          border: '1px solid #3b82f6',
           color: '#fff',
           padding: '16px',
           borderRadius: '16px',
@@ -176,7 +172,7 @@ const Cart = () => {
               onClick={() => navigate('/')}
               className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-all shadow-lg shadow-blue-600/20"
             >
-              Start Shopping
+              Add your Items Newly
             </button>
           </div>
         ) : (
@@ -288,7 +284,7 @@ const Cart = () => {
                   className="w-full py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold text-base sm:text-lg shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-3 active:scale-95"
                 >
                   {isLoggedIn ? <FaCreditCard /> : <FaLock />}
-                  {isLoggedIn ? "Checkout Now" : "Login to Checkout"}
+                  {isLoggedIn ? "Checkout Now" : "Login Required to Checkout"}
                 </button>
               </div>
             </div>

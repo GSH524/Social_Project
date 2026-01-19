@@ -36,8 +36,8 @@ const Footer = () => {
             </span>
           </div>
           <p className="text-sm max-w-xs sm:mx-0 leading-relaxed text-slate-400">
-            Lorem ipsum dolor, sit amet consectetur adipisicing elit. Omnis sequi
-            repudiandae in expedita reprehenderit natus molestias placeat.
+            Experience the pinnacle of luxury with our Premium Collections, featuring 
+            exclusively curated items that define sophistication and style. 
           </p>
 
           <div className="flex gap-5 mx-auto mt-2 justify-center sm:justify-start">

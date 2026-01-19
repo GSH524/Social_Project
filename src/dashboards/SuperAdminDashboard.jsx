@@ -187,7 +187,7 @@ const SuperAdminDashboard = () => {
       if (selectedMonth && selectedYear) {
           // Show by Day if month selected
           const daysInMonth = new Date(selectedYear, parseInt(selectedMonth) + 1, 0).getDate();
-          chartLabels = Array.from({length: daysInMonth}, (_, i) => i + 1);
+          chartLabels = Array.from({length: daysInMonth}, (_, i) => `Day ${i + 1}`);
           chartData = new Array(daysInMonth).fill(0);
           
           sortedChartOrders.forEach(order => {
@@ -198,15 +198,19 @@ const SuperAdminDashboard = () => {
           });
       } else {
           // Show by Month (Default)
-          const monthlyRevenue = {};
+          // We use a Map to keep order and accumulate values
+          const monthlyRevenue = new Map();
+          
           sortedChartOrders.forEach(order => {
               if(order.order_status !== "Cancelled" && order.order_status !== "Returned") {
-                const month = order.createdAt.toLocaleString('default', { month: 'short', year: '2-digit' });
-                monthlyRevenue[month] = (monthlyRevenue[month] || 0) + order.totalAmount;
+                // Format: "Jan 24" or just "Jan" if year is selected
+                const label = order.createdAt.toLocaleString('default', { month: 'short', year: '2-digit' });
+                monthlyRevenue.set(label, (monthlyRevenue.get(label) || 0) + order.totalAmount);
               }
           });
-          chartLabels = Object.keys(monthlyRevenue);
-          chartData = Object.values(monthlyRevenue);
+          
+          chartLabels = Array.from(monthlyRevenue.keys());
+          chartData = Array.from(monthlyRevenue.values());
       }
 
       return { 
@@ -233,6 +237,43 @@ const SuperAdminDashboard = () => {
       tension: 0.4,
       pointRadius: 4
     }]
+  };
+
+  // Chart Options for Clean Axis
+  const chartOptions = {
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#fff',
+            bodyColor: '#cbd5e1',
+            borderColor: '#334155',
+            borderWidth: 1,
+        }
+    },
+    scales: {
+        y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { 
+                callback: (value) => `₹${value.toLocaleString()}`, // Format Y-axis as currency
+                color: '#94a3b8',
+                font: { size: 10 }
+            },
+            border: { display: false }
+        },
+        x: {
+            grid: { display: false },
+            ticks: {
+                color: '#94a3b8',
+                font: { size: 10 },
+                maxRotation: 0, // Prevent diagonal text
+                autoSkip: true, // Skip labels if they are too crowded
+                maxTicksLimit: 12 // Limit number of X-axis labels
+            },
+            border: { display: false }
+        }
+    }
   };
 
   // --- ACTIONS HANDLERS ---
@@ -299,7 +340,7 @@ const SuperAdminDashboard = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
       <ToastContainer position="top-right" theme="dark" />
-     {/* Top Navigation */}
+      {/* Top Navigation */}
       <nav className="h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md top-0 z-50 px-6 flex items-center justify-between">
          <div className="flex items-center gap-3">
              <div className="bg-gradient-to-tr from-rose-600 to-orange-600 p-2 rounded-lg">
@@ -410,7 +451,8 @@ const SuperAdminDashboard = () => {
                     <TrendingUp className="text-rose-500"/> Revenue Trend
                 </h3>
                 <div className="h-64 w-full">
-                    <Line data={revenueChartData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } }} />
+                    {/* UPDATED: Added chartOptions to remove long timestamp text */}
+                    <Line data={revenueChartData} options={chartOptions} />
                 </div>
             </div>
 
