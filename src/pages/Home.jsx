@@ -42,14 +42,14 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   );
 
   return (
-    <div className="group bg-slate-800 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/10 flex flex-col h-full relative">
+    <div className="group bg-slate-800 rounded-xl sm:rounded-2xl overflow-hidden hover:scale-105 border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/10 flex flex-col h-full relative">
       
       {/* --- Image Section --- */}
       <div className="relative h-40 sm:h-64 overflow-hidden bg-slate-700">
         <img 
           src={getProductImage(product)} 
           alt={product.product_name} 
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+          className="w-full h-full object-cover" 
           onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"; }} 
         />
         
