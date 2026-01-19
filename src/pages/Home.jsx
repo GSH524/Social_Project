@@ -17,7 +17,7 @@ import {
 // Data
 import { products } from "../data/dataUtils";
 
-// --- COMPONENT: PRODUCT CARD (REDESIGNED) ---
+// --- COMPONENT: PRODUCT CARD (RESPONSIVE) ---
 const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   
   const getProductImage = (p) => {
@@ -42,61 +42,63 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
   );
 
   return (
-    <div className="group bg-slate-800 rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-900/10 flex flex-col h-full relative">
+    <div className="group bg-slate-800 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/10 flex flex-col h-full relative">
       
       {/* --- Image Section --- */}
-      <div className="relative h-48 sm:h-64 overflow-hidden bg-slate-700">
+      <div className="relative h-40 sm:h-64 overflow-hidden bg-slate-700">
         <img 
           src={getProductImage(product)} 
           alt={product.product_name} 
-          className="w-full h-full object-cover" 
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
           onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop"; }} 
         />
         
         {/* Department Badge (Top Left) */}
-        <span className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-md text-slate-200 text-[10px] font-bold px-2 py-1 rounded-md border border-white/10 uppercase tracking-wider">
+        <span className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-md text-slate-200 text-[8px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md border border-white/10 uppercase tracking-wider">
            {product.product_department}
         </span>
       </div>
 
       {/* --- Content Section --- */}
-      <div className="p-4 flex flex-col flex-grow">
+      <div className="p-3 sm:p-4 flex flex-col flex-grow">
         
         {/* Category & Title */}
         <div className="mb-2">
-            <p className="text-xs text-slate-400 mb-1 capitalize">{product.product_category}</p>
-            <h3 className="text-sm sm:text-base font-bold text-white leading-tight line-clamp-2 min-h-[2.5rem] group-hover:text-blue-400 transition-colors">
+            <p className="text-[10px] sm:text-xs text-slate-400 mb-0.5 sm:mb-1 capitalize">{product.product_category}</p>
+            <h3 className="text-xs sm:text-base font-bold text-white leading-tight line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] group-hover:text-blue-400 transition-colors">
                 {product.product_name}
             </h3>
         </div>
 
         {/* Price & Rating Row */}
-        <div className="flex items-center justify-between mb-4 mt-auto">
+        <div className="flex items-center justify-between mb-3 sm:mb-4 mt-auto">
             <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-bold text-white">₹{product.selling_unit_price.toFixed(2)}</span>
+                <span className="text-sm sm:text-xl font-bold text-white">₹{product.selling_unit_price.toFixed(2)}</span>
             </div>
             {/* Rating */}
             <div className="flex flex-col items-end">
                 <div className="flex gap-0.5 mb-1">{renderStars(product.product_rating || 0)}</div>
-                <span className="text-[10px] text-slate-400">({product.product_rating || 0} Reviews)</span>
+                <span className="text-[8px] sm:text-[10px] text-slate-400">({product.product_rating || 0} Reviews)</span>
             </div>
         </div>
 
         {/* --- VISIBLE ACTION BUTTONS --- */}
         {!isAdmin ? (
-            <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-700/50">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 sm:pt-3 border-t border-slate-700/50">
                 <button 
                     onClick={() => onAddToCart(product)}
-                    className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-xs sm:text-sm font-semibold py-2.5 rounded-lg transition-all active:scale-95 border border-slate-600 hover:border-slate-500"
+                    className="flex items-center justify-center gap-1 sm:gap-2 bg-slate-700 hover:bg-slate-600 text-white text-[10px] sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg transition-all active:scale-95 border border-slate-600 hover:border-slate-500"
                 >
-                    <FaShoppingCart size={14} className="text-blue-400"/> Add
+                    <FaShoppingCart className="text-blue-400 w-3 h-3 sm:w-3.5 sm:h-3.5"/> 
+                    <span>Add</span>
                 </button>
                 
                 <button 
                     onClick={() => onBuyNow(product)}
-                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold py-2.5 rounded-lg shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                    className="flex items-center justify-center gap-1 sm:gap-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] sm:text-sm font-bold py-2 sm:py-2.5 rounded-lg shadow-lg shadow-blue-900/20 transition-all active:scale-95"
                 >
-                    <FaBolt size={14} /> Buy
+                    <FaBolt className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> 
+                    <span>Buy</span>
                 </button>
             </div>
         ) : (
@@ -235,17 +237,17 @@ const Home = () => {
       <Toaster position="top-center" />
 
       {/* --- HERO SECTION --- */}
-      <section className="relative min-h-[600px] md:h-[90vh] flex items-center justify-center text-center px-4">
+      <section className="relative min-h-[500px] md:h-[90vh] flex items-center justify-center text-center px-4">
         <div className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat md:bg-fixed" style={{ backgroundImage: 'url("https://wallpapercave.com/wp/wp8036239.jpg")' }}></div>
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-900 via-slate-900/80 to-slate-900/40"></div>
         
         <div className="relative z-20 max-w-4xl animate-fade-in-up px-2 sm:px-4">
           <span className="inline-block py-1 px-3 sm:px-4 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[10px] sm:text-xs md:text-sm font-bold tracking-wider uppercase mb-4 sm:mb-6 backdrop-blur-md">New Season Arrival</span>
-          <h1 className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight mb-4 sm:mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight mb-4 sm:mb-6">
             Redefine your <br /> 
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-200 to-blue-500">digital style.</span>
           </h1>
-          <p className="text-sm sm:text-lg md:text-xl text-slate-300 mb-6 sm:mb-8 max-w-xl sm:max-w-2xl mx-auto font-light leading-relaxed">
+          <p className="text-sm sm:text-lg md:text-xl text-slate-300 mb-6 sm:mb-8 max-w-xl sm:max-w-2xl mx-auto font-light leading-relaxed px-4">
             Premium dark aesthetics for the modern minimalist. Curated fashion for those who dare to stand out.
           </p>
           <div className="flex justify-center">
@@ -259,11 +261,11 @@ const Home = () => {
       {/* --- FLOATING TRUST BAR --- */}
       <section className="relative z-30 px-4 -mt-12 sm:-mt-16 md:-mt-24 mb-12 sm:mb-16 md:mb-24">
         <div className="max-w-6xl mx-auto bg-slate-800/90 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-6 md:p-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-white/10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-0 md:divide-x divide-white/10">
             {[ { icon: FaTruck, title: "Free Shipping", desc: "Orders > ₹999" }, { icon: FaShieldAlt, title: "Secure Payment", desc: "100% Protected" }, { icon: FaUndo, title: "Easy Returns", desc: "30-day Policy" }, { icon: FaStar, title: "Top Rated", desc: "4.9/5 Stars" } ].map((item, index) => (
               <div key={index} className="flex flex-col items-center text-center p-2">
-                <item.icon className="text-blue-500 text-xl md:text-3xl mb-2 md:mb-3" />
-                <h4 className="text-white font-bold text-xs md:text-base">{item.title}</h4>
+                <item.icon className="text-blue-500 text-2xl md:text-3xl mb-2 md:mb-3" />
+                <h4 className="text-white font-bold text-sm md:text-base">{item.title}</h4>
                 <p className="text-slate-400 text-xs md:text-sm">{item.desc}</p>
               </div>
             ))}
@@ -277,7 +279,7 @@ const Home = () => {
             <FaUserFriends className="text-blue-500" />
             <h2 className="text-xl md:text-2xl font-bold text-white">Shop by Department</h2>
         </div>
-        <div className="flex flex-nowrap overflow-x-auto gap-2 sm:gap-3 pb-4 justify-start sm:justify-center scrollbar-hide px-2">
+        <div className="flex flex-nowrap overflow-x-auto gap-2 sm:gap-3 pb-4 justify-start sm:justify-center px-2 touch-pan-x">
           <div className="flex gap-2 bg-slate-800 p-1.5 sm:p-2 rounded-xl sm:rounded-full border border-slate-700 min-w-max mx-auto">
             {departments.map((dept) => (
                 <button 
@@ -312,13 +314,13 @@ const Home = () => {
       </section>
 
       {/* --- MAIN PRODUCT GRID --- */}
-      <section className="max-w-7xl mx-auto px-6 pb-16">
+      <section className="max-w-7xl mx-auto px-2 sm:px-6 pb-16">
         {/* Dynamic Title based on selection */}
-        <h3 className="text-lg font-bold text-slate-400 mb-6 border-l-4 border-blue-500 pl-3">
+        <h3 className="text-base sm:text-lg font-bold text-slate-400 mb-4 sm:mb-6 border-l-4 border-blue-500 pl-3 mx-2 sm:mx-0">
             Showing results for: <span className="text-white">{selectedCategory}</span>
         </h3>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
           {filteredProducts.map((p) => (
             <ProductCard 
               key={p.product_id} 
@@ -367,12 +369,12 @@ const Home = () => {
       )}
        
       {/* --- TRENDING SECTION --- */}
-      <section className="max-w-7xl mx-auto px-4 pb-24 border-t border-slate-800 pt-12 sm:pt-16">
+      <section className="max-w-7xl mx-auto px-2 sm:px-4 pb-24 border-t border-slate-800 pt-12 sm:pt-16">
          <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8 justify-center">
             <FaFire className="text-orange-500 text-xl sm:text-2xl"/>
             <h2 className="text-2xl sm:text-3xl font-bold text-white">Trending Now</h2>
          </div>
-         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
+         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
             {trendingProducts.map((p) => (
                <ProductCard key={p.product_id} product={p} isAdmin={isAdmin} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />
             ))}
@@ -399,7 +401,7 @@ const Home = () => {
       {/* --- TRUSTED BRANDS --- */}
       <section className="py-10 border-t border-slate-800"> 
         <p className="text-center text-slate-500 text-xs sm:text-sm tracking-[0.2em] font-bold mb-8 uppercase">Trusted By</p> 
-        <div className="flex flex-wrap justify-center gap-6 sm:gap-16 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all"> 
+        <div className="flex flex-wrap justify-center gap-6 sm:gap-16 opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all px-4"> 
           {[
             "https://images-platform.99static.com//c60-ZrzNS_3CeTpUcVrHuXehJzo=/27x0:1034x1007/fit-in/500x500/99designs-contests-attachments/63/63177/attachment_63177734",
             "https://img.freepik.com/free-vector/ecological-market-logo-design_23-2148468229.jpg",
