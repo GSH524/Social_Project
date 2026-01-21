@@ -7,7 +7,7 @@ import {
 import {
   LayoutDashboard, ShoppingBag, Users, Package, Settings, FileText,
   BarChart2, Menu, X, User, Camera, Loader, Calendar, Ticket, MapPin, 
-  Trophy, TrendingUp, AlertTriangle, Search, Crown // ✅ Added Crown
+  Trophy, TrendingUp, AlertTriangle, Search, Crown
 } from 'lucide-react';
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc, collection, getDocs, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
@@ -28,8 +28,8 @@ import AdminAnalytics from './AdminAnalytics';
 import AdminReports from './AdminReports';
 import AdminSettings from './AdminSettings';
 
+// ChartJS Setup
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend, Filler);
-
 ChartJS.defaults.color = '#94a3b8';
 ChartJS.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
 ChartJS.defaults.font.family = "'Inter', sans-serif";
@@ -61,7 +61,6 @@ const AdminDashboard = () => {
   const [coupons, setCoupons] = useState([]);
   const [newCoupon, setNewCoupon] = useState({ code: '', discount: '', expiry: '' });
 
-  // Helper function
   const extractPincode = useCallback((addrString) => {
     if(!addrString) return "Unknown";
     const str = typeof addrString === 'string' ? addrString : JSON.stringify(addrString);
@@ -172,7 +171,7 @@ const AdminDashboard = () => {
           isFirebase: true,
           payment_method: data.paymentMethod || 'Unknown',
           address_snapshot: data.address,
-          userId: data.userId // Store userId for notifications
+          userId: data.userId 
         };
       });
 
@@ -185,24 +184,32 @@ const AdminDashboard = () => {
     } catch (err) { console.error("Error fetching data:", err); } finally { setLoadingData(false); }
   }, []);
 
+  // ✅ UPDATED PROFILE FETCHING FOR ADMIN
   useEffect(() => {
     fetchAllData();
     const fetchProfile = async () => {
       if (auth.currentUser) {
         try {
-          const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
-          if (snap.exists()) setAdminProfile({ ...snap.data(), role: 'Admin' });
-        } catch (e) { console.log("Profile not found"); }
+          // Look in 'adminDetails' collection first
+          const snap = await getDoc(doc(db, "adminDetails", auth.currentUser.uid));
+          if (snap.exists()) {
+            setAdminProfile({ ...snap.data(), role: 'Admin' });
+          } else {
+            console.log("Admin profile not found in adminDetails.");
+          }
+        } catch (e) { console.error("Error fetching admin profile", e); }
       }
     };
     fetchProfile();
   }, [fetchAllData]);
 
+  // ✅ UPDATED PROFILE SAVING FOR ADMIN
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
     try {
       if (auth.currentUser) {
-        await updateDoc(doc(db, "users", auth.currentUser.uid), editFormData);
+        // Update 'adminDetails' collection
+        await updateDoc(doc(db, "adminDetails", auth.currentUser.uid), editFormData);
         setAdminProfile(p => ({ ...p, ...editFormData }));
         setShowProfileModal(false);
       }
@@ -220,7 +227,6 @@ const AdminDashboard = () => {
         isActive: true
       });
 
-      // Notify All Users
       await addDoc(collection(db, "notifications"), {
         type: "user",
         subType: "coupon",
@@ -243,10 +249,8 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- ORDER STATUS NOTIFICATION LOGIC ---
   const handleOrderStatusUpdate = async (orderId, newStatus, userId) => {
       let recipientId = userId;
-      // Safety check: if userId wasn't passed directly, fetch from order document
       if (!recipientId) {
           try {
              const orderSnap = await getDoc(doc(db, "OrderItems", orderId));
@@ -266,7 +270,6 @@ const AdminDashboard = () => {
               });
           } catch(e) { console.error("Error sending notification:", e); }
       }
-      // Refresh Data
       fetchAllData(); 
   };
 
@@ -312,7 +315,6 @@ const AdminDashboard = () => {
   }, [filteredOrders, addressIdMap, extractPincode, returnSearch]);
 
   const advancedStats = useMemo(() => {
-      // 1. Item Counts for Top Product
       const itemCounts = {};
       allItems.forEach(item => {
           const pid = String(item.product_id); 
@@ -328,7 +330,6 @@ const AdminDashboard = () => {
 
       const topProduct = products.find(p => String(p.product_id) === topProductId);
 
-      // 2. Pincode Stats
       const pincodeStatsData = {};
       filteredOrders.forEach(order => {
           let pincode = "Unknown";
@@ -358,11 +359,10 @@ const AdminDashboard = () => {
         .map(([pin, data]) => ({ pincode: pin, ...data }))
         .sort((a,b) => b.sales - a.sales);
 
-      // 3. Top Customer Calculation (New)
       const customerStats = {};
       filteredOrders.forEach(o => {
           if(o.order_status !== 'Cancelled' && o.order_status !== 'Returned') {
-              const key = o.userId || o.customer_id; // Use Name or ID
+              const key = o.userId || o.customer_id; 
               if(!customerStats[key]) {
                   customerStats[key] = { spend: 0, orders: 0, name: o.customer_id, id: o.userId };
               }
@@ -383,9 +383,8 @@ const AdminDashboard = () => {
       let topCustomer = null;
       if(topCustKey) {
           const stats = customerStats[topCustKey];
-          // Try to match with full customer DB to get image
           const custDetails = customers.find(c => String(c.customer_id) === String(stats.id)) 
-                           || customers.find(c => c.customer_full_name === stats.name);
+                            || customers.find(c => c.customer_full_name === stats.name);
           
           topCustomer = {
               firstName: custDetails ? custDetails.customer_full_name.split(' ')[0] : stats.name.split(' ')[0],
@@ -496,7 +495,7 @@ const AdminDashboard = () => {
 
         <div className="flex items-center gap-3 lg:gap-4">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => { setEditFormData(adminProfile); setShowProfileModal(true); }}>
-            <div className="text-right hidden md:block"><div className="text-sm font-semibold text-white">{adminProfile.firstName}</div><div className="text-[10px] text-slate-500 uppercase tracking-wider">{adminProfile.role}</div></div>
+            <div className="text-right hidden md:block"><div className="text-sm font-semibold text-white">{adminProfile.firstName} {adminProfile.lastName}</div><div className="text-[10px] text-slate-500 uppercase tracking-wider">{adminProfile.role}</div></div>
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 p-[2px]">
               <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">{adminProfile.profileImage ? <img src={adminProfile.profileImage} className="w-full h-full object-cover" alt="p" /> : <span className="font-bold text-white text-sm">{adminProfile.firstName?.[0]}</span>}</div>
             </div>

@@ -5,13 +5,13 @@ import {
   GoogleAuthProvider,
   setPersistence,
   browserLocalPersistence,
-  browserSessionPersistence
+  browserSessionPersistence,
+  signOut
 } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaLock, FaEnvelope } from "react-icons/fa";
-// ✅ 1. Import React Hot Toast
 import toast, { Toaster } from 'react-hot-toast';
 
 const provider = new GoogleAuthProvider();
@@ -24,10 +24,6 @@ const Login = () => {
   const [error, setError] = useState("");
 
   const navigate = useNavigate();
-  
-  // --- ROLES CONFIGURATION ---
-  const Admin_email = import.meta.env.Admin_email; 
-  const SuperAdmin_email = "gudipatisrihari6@gmail.com"; 
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
@@ -37,16 +33,61 @@ const Login = () => {
     }
   }, []);
 
-  const handleRedirect = (userEmail) => {
-    if (userEmail === SuperAdmin_email) {
-      navigate("/superadmindashboard");
-    } else if (userEmail === Admin_email) {
-      navigate("/admindashboard");
-    } else {
-      navigate("/");
+  // --- MAIN REDIRECT LOGIC ---
+  const checkUserRoleAndRedirect = async (user) => {
+    const userEmail = user.email;
+    const toastId = toast.loading("Verifying Account...");
+
+    try {
+      // 1. Check if Email Exists in 'adminDetails'
+      const adminQuery = query(collection(db, "adminDetails"), where("email", "==", userEmail));
+      const adminSnapshot = await getDocs(adminQuery);
+
+      if (!adminSnapshot.empty) {
+        // Admin Profile Found. Now Check for Active Subscription Payment.
+        
+        // 2. Check 'subscribed_payments' collection
+        const paymentQuery = query(collection(db, "subscribed_payments"), where("email", "==", userEmail));
+        const paymentSnapshot = await getDocs(paymentQuery);
+
+        // Logic: Must exist in adminDetails AND have a record in subscribed_payments
+        if (!paymentSnapshot.empty) {
+           toast.success("Welcome Admin!", { id: toastId });
+           navigate("/admindashboard");
+        } else {
+           // Exists in Admin Details but NO Payment Record found
+           toast.error("Access Denied: Please purchase a plan to login.", { id: toastId });
+           await signOut(auth); // Sign out so they aren't logged in without a plan
+           
+           // Redirect to home page (or services page) after a short delay so they can see the error
+           setTimeout(() => {
+             navigate("/"); 
+           }, 2000);
+        }
+        return; // Stop execution here
+      }
+
+      // 3. Check Users Collection (if not an admin)
+      const userQuery = query(collection(db, "users"), where("email", "==", userEmail));
+      const userSnapshot = await getDocs(userQuery);
+
+      if (!userSnapshot.empty) {
+        toast.success("Welcome User!", { id: toastId });
+        navigate("/userdashboard");
+        return; 
+      }
+
+      // 4. Not Found in Either Collection
+      toast.error("Email does not exist. Please Sign Up.", { id: toastId });
+      await signOut(auth); // Force logout
+      
+    } catch (err) {
+      console.error(err);
+      toast.error("Verification failed. Please try again.", { id: toastId });
     }
   };
 
+  // --- LOGIN HANDLER ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -59,93 +100,34 @@ const Login = () => {
       }
 
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithEmailAndPassword(auth, email, password);
-
-      // ✅ 2. Success Toast
-      toast.success("Login Successful! Redirecting...", {
-        duration: 1500,
-        position: "top-center",
-        style: {
-          background: "rgba(255, 255, 255, 0.1)",
-          backdropFilter: "blur(10px)",
-          color: "#fff",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-        },
-      });
-
-      setTimeout(() => {
-        handleRedirect(email);
-      }, 1500);
+      
+      // 1. Auth with Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. Run Role & Payment Checks
+      await checkUserRoleAndRedirect(userCredential.user);
 
     } catch (err) {
+      console.error(err);
       setError("Invalid email or password");
-      // ✅ 3. Error Toast
-      toast.error("Invalid email or password", {
-        style: {
-          background: "rgba(255, 50, 50, 0.2)", // Red tint
-          backdropFilter: "blur(10px)",
-          color: "#fff",
-          border: "1px solid rgba(255, 50, 50, 0.3)",
-        },
-      });
+      toast.error("Invalid credentials");
     }
   };
 
+  // --- GOOGLE LOGIN HANDLER ---
   const handleGoogleLogin = async () => {
     setError("");
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
       
-      const userRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        await setDoc(userRef, {
-          fullName: user.displayName,
-          firstName: user.displayName ? user.displayName.split(' ')[0] : "User",
-          lastName: user.displayName ? user.displayName.split(' ').slice(1).join(' ') : "",
-          email: user.email,
-          profileImage: user.photoURL,
-          mobile: "", 
-          address: "",
-          city: "",
-          country: "",
-          createdAt: new Date(),
-          authProvider: "google"
-        });
-      }
-
-      // ✅ 4. Google Success Toast
-      toast.success("Google Login Successful!", {
-        duration: 1500,
-        position: "top-center",
-        style: {
-          background: "rgba(255, 255, 255, 0.1)",
-          backdropFilter: "blur(10px)",
-          color: "#fff",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-        },
-      });
-
-      setTimeout(() => {
-        handleRedirect(user.email);
-      }, 1500);
+      // Run Checks
+      await checkUserRoleAndRedirect(result.user);
 
     } catch (err) {
       if (err.code === 'auth/popup-closed-by-user') return; 
-      setError("Google login failed. Please try again.");
-      toast.error("Google login failed.", {
-        style: {
-          background: "rgba(255, 50, 50, 0.2)",
-          backdropFilter: "blur(10px)",
-          color: "#fff",
-          border: "1px solid rgba(255, 50, 50, 0.3)",
-        },
-      });
-      console.error(err);
+      setError("Google login failed.");
+      toast.error("Google login failed.");
     }
   };
 
@@ -158,12 +140,8 @@ const Login = () => {
   };
 
   return (
-    <div 
-      className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden"
-      style={bgStyle}
-    >
-      {/* ✅ 5. Toaster Component */}
-      <Toaster />
+    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden" style={bgStyle}>
+      <Toaster position="top-center" />
 
       <div className="w-full max-w-[320px] sm:max-w-sm md:max-w-md bg-gradient-to-b from-white/10 to-white/5 backdrop-blur-[25px] border border-white/10 rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 sm:p-8 md:p-10 relative overflow-hidden animate-[fadeUp_0.8s_ease-out]">
         
