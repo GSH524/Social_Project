@@ -343,6 +343,7 @@ const UserDashboard = () => {
   const [selectedReturnOrder, setSelectedReturnOrder] = useState(null);
   const [returnReason, setReturnReason] = useState("Wrong Size");
 
+  // ... (useEffect for data fetching - KEEP EXISTING) ...
   useEffect(() => {
     let unsubscribeOrders = () => {}; 
     const init = async () => {
@@ -369,6 +370,7 @@ const UserDashboard = () => {
     return () => unsubscribeOrders();
   }, [user]);
 
+  // ... (useEffect for products - KEEP EXISTING) ...
   useEffect(() => {
     if (products.length > 0 && staticItems.length > 0) {
         const productSales = {};
@@ -378,6 +380,7 @@ const UserDashboard = () => {
     }
   }, []);
 
+  // ... (memos for displayData, rawData, filteredOrders - KEEP EXISTING) ...
   const matchedCustomer = useMemo(() => user?.email ? customers.find(c => c.customer_email.toLowerCase() === user.email.toLowerCase()) : null, [user]);
   const customerAddressObj = useMemo(() => matchedCustomer ? staticAddresses.find(a => a.customer_id === matchedCustomer.customer_id) : null, [matchedCustomer]);
   const displayData = useMemo(() => ({
@@ -405,9 +408,9 @@ const UserDashboard = () => {
       return (filters.year === 'All' || d.getFullYear() === parseInt(filters.year)) && (filters.month === 'All' || d.toLocaleString('default', { month: 'short' }) === filters.month) && (filters.category === 'All' || order.items.some(i => i.category === filters.category));
   }), [rawData, filters]);
 
+  // ... (handleAddToCart, handleProfileSave, openReturnModal - KEEP EXISTING) ...
   const handleAddToCart = (product) => { 
       dispatch(addItem({ product_id: product.product_id, product_name: product.product_name, image_url: product.image_url, selling_unit_price: product.selling_unit_price })); 
-      // Toast
       toast.success("Added to cart!", { 
           style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' },
           position: "bottom-right", 
@@ -431,11 +434,33 @@ const UserDashboard = () => {
 
   const openReturnModal = (order) => { setSelectedReturnOrder(order); setReturnModalOpen(true); };
   
+  // ✅ UPDATED: Include reason in Notification AND Order document
   const handleReturnSubmit = async () => { 
       if (selectedReturnOrder?.source === 'live') { 
           try { 
-              await updateDoc(doc(db, "OrderItems", selectedReturnOrder.order_id), { orderStatus: "Return Requested", returnReason, returnDate: serverTimestamp() }); 
-              await addDoc(collection(db, "notifications"), { type: "admin", subType: "return_request", message: `Return Req: Order #${selectedReturnOrder.order_id.slice(0,6)}`, orderId: selectedReturnOrder.order_id, customerId: user.uid, customerName: displayData.fullName, returnReason, createdAt: serverTimestamp(), isRead: false, fullOrderId: selectedReturnOrder.order_id, senderId: user.uid, senderName: displayData.fullName }); 
+              // 1. Update Order Status and Save Reason
+              await updateDoc(doc(db, "OrderItems", selectedReturnOrder.order_id), { 
+                  orderStatus: "Return Requested", 
+                  returnReason: returnReason, // Saving to order doc for Admin Table
+                  returnDate: serverTimestamp() 
+              }); 
+
+              // 2. Send Notification to Admin
+              await addDoc(collection(db, "notifications"), { 
+                  type: "admin", 
+                  subType: "return_request", 
+                  message: `Return Req: Order #${selectedReturnOrder.order_id.slice(0,6)}`, 
+                  orderId: selectedReturnOrder.order_id, 
+                  customerId: user.uid, 
+                  customerName: displayData.fullName, 
+                  returnReason: returnReason, // Saving to notification doc for Admin Navbar
+                  createdAt: serverTimestamp(), 
+                  isRead: false, 
+                  fullOrderId: selectedReturnOrder.order_id, 
+                  senderId: user.uid, 
+                  senderName: displayData.fullName 
+              }); 
+
               toast.success("Return Requested Successfully!", { style: { background: '#1e293b', color: '#fff' } }); 
           } catch { 
               toast.error("Request Failed.", { style: { background: '#1e293b', color: '#fff' } }); 
@@ -446,19 +471,18 @@ const UserDashboard = () => {
       setReturnModalOpen(false); 
   };
 
+  // ... (Return JSX - KEEP EXISTING) ...
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader size={32} className="animate-spin text-violet-500" /></div>;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans relative overflow-x-hidden pb-20">
       
-      {/* React Hot Toast Container */}
       <Toaster position="top-right" reverseOrder={false} />
 
       <div className="fixed inset-0 pointer-events-none"><div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-600/10 rounded-full blur-[120px]" /><div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-cyan-600/10 rounded-full blur-[120px]" /></div>
 
       <div className="relative z-10 p-4 max-w-[1600px] mx-auto">
         
-        {/* Header & Tabs */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 mb-6 border-b border-slate-800 pb-4">
             <div>
                 <h1 className="text-xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-cyan-300">Hello, {displayData.firstName}</h1>

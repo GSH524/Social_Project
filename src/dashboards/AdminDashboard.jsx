@@ -6,8 +6,8 @@ import {
 } from 'chart.js';
 import {
   LayoutDashboard, ShoppingBag, Users, Package, Settings, FileText,
-  BarChart2, Menu, X, User, Camera, Loader, Calendar, Ticket, MapPin, 
-  Trophy, TrendingUp, AlertTriangle, Search, Crown
+  BarChart2, User, Camera, Loader, Calendar, Ticket, MapPin, 
+  Trophy, TrendingUp, AlertTriangle, Search, Crown, X // Removed Menu icon
 } from 'lucide-react';
 import { auth, db } from "../firebase";
 import { doc, getDoc, updateDoc, collection, getDocs, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
@@ -37,7 +37,7 @@ ChartJS.defaults.font.family = "'Inter', sans-serif";
 const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Removed isMobileMenuOpen state
 
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
@@ -253,8 +253,8 @@ const AdminDashboard = () => {
       let recipientId = userId;
       if (!recipientId) {
           try {
-             const orderSnap = await getDoc(doc(db, "OrderItems", orderId));
-             if(orderSnap.exists()) recipientId = orderSnap.data().userId;
+              const orderSnap = await getDoc(doc(db, "OrderItems", orderId));
+              if(orderSnap.exists()) recipientId = orderSnap.data().userId;
           } catch(e) { console.error(e); }
       }
 
@@ -477,11 +477,10 @@ const AdminDashboard = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] w-full font-sans text-slate-200 bg-[#0f172a] selection:bg-cyan-500/30 relative">
+      
+      {/* --- DESKTOP TOP NAVBAR --- */}
       <nav className="h-20 bg-[#1e293b]/50 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-4 lg:px-10 shrink-0 relative z-20">
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="lg:hidden p-2 text-slate-400 hover:text-white bg-white/5 rounded-full transition-colors">
-            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
           <h2 className="text-2xl font-bold tracking-tight text-white">GSH&nbsp;<span className="text-cyan-400">Admin</span></h2>
         </div>
 
@@ -503,18 +502,22 @@ const AdminDashboard = () => {
         </div>
       </nav>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden absolute top-20 left-0 w-full h-[calc(100vh-80px)] bg-slate-900/95 backdrop-blur-2xl z-40 border-t border-white/5 flex flex-col p-6 animate-fade-in-up">
-          <div className="space-y-2">
-            {navItems.map((item) => (
-              <button key={item.id} onClick={() => { setActiveSection(item.id); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all font-medium ${activeSection === item.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                <item.icon size={20} /> <span className="text-lg">{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* --- ✅ NEW: MOBILE HORIZONTAL TOGGLE MENU --- */}
+      <div className="lg:hidden sticky top-0 z-30 w-full bg-[#1e293b]/95 backdrop-blur-xl border-b border-white/10 overflow-x-auto flex items-center gap-3 px-4 py-3 scrollbar-hide">
+          {navItems.map((item) => (
+            <button 
+              key={item.id} 
+              onClick={() => setActiveSection(item.id)} 
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide border transition-all duration-200 
+                ${activeSection === item.id 
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
+                }`}
+            >
+              <item.icon size={14} /> <span>{item.label}</span>
+            </button>
+          ))}
+      </div>
 
       <main className="flex-1 overflow-y-auto p-4 lg:p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent relative z-10 bg-[#0f172a]">
         {loadingData ? (
@@ -814,6 +817,6 @@ const AdminDashboard = () => {
       )}
     </div>
   );
-};
+}; 
 
 export default AdminDashboard;

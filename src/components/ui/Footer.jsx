@@ -17,13 +17,14 @@ const Footer = () => {
   };
 
   return (
-    <footer className="bg-slate-900 text-slate-400 pt-20 pb-10 relative overflow-hidden">
+    // Updated padding: py-6 for mobile, pt-20 pb-10 for larger screens
+    <footer className="bg-slate-900 text-slate-400 py-6 sm:pt-20 sm:pb-10 relative overflow-hidden">
       
       {/* Top Gradient Line */}
       <div className="absolute top-0 left-0 w-full h-1 bg-white" />
 
-      {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.2fr] gap-10 lg:gap-12 text-center sm:text-left">
+      {/* Main Container - HIDDEN on mobile, GRID on sm (tablets/laptops) and up */}
+      <div className="hidden sm:grid max-w-7xl mx-auto px-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.2fr] gap-10 lg:gap-12 text-center sm:text-left">
 
         {/* 1. Brand Section */}
         <div className="flex flex-col gap-5 items-center sm:items-start">
@@ -71,7 +72,7 @@ const Footer = () => {
               <li key={item}>
                 <Link
                   to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-                  onClick={scrollToTop} // <--- Added scroll handler here
+                  onClick={scrollToTop} 
                   className="hover:text-blue-500 transition-colors duration-200 block sm:inline-block"
                 >
                   {item}
@@ -123,8 +124,8 @@ const Footer = () => {
 
       </div>
 
-      {/* Bottom Bar */}
-      <div className="mt-16 pt-8 border-t border-white/5 text-center">
+      {/* Bottom Bar - Removed top margin on mobile so it's compact */}
+      <div className="mt-0 sm:mt-16 sm:pt-8 sm:border-t border-white/5 text-center">
         <p className="text-xs sm:text-sm text-slate-500">
           © {new Date().getFullYear()} GSH STORE. All rights reserved.
         </p>

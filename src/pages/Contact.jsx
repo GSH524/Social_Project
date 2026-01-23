@@ -52,7 +52,7 @@ export default function Contact() {
 
   return (
     // Use min-h-[100dvh] for better mobile browser support
-    <section className="min-h-[100dvh] bg-slate-950 relative flex items-center justify-center p-4 md:p-8 overflow-x-hidden font-sans selection:bg-blue-500 selection:text-white">
+    <section className="min-h-[100dvh] bg-slate-950 relative flex items-center justify-center p-4 md:p-8 overflow-x-hidden font-sans selection:bg-blue-500 selection:text-white pb-24 md:pb-8">
       
       {/* --- Ambient Background Glows --- */}
       {/* Reduced size on mobile to prevent visual clutter */}
@@ -214,8 +214,8 @@ export default function Contact() {
         href="https://wa.me/916303125585"
         target="_blank"
         rel="noreferrer"
-        // Adjusted positioning for mobile to avoid covering content
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-[#25D366]/40 hover:scale-110 hover:rotate-12 transition-all duration-300 z-50"
+        // ✅ CHANGED: Moved 'bottom-6' to 'bottom-24' for Mobile to avoid overlap with navbars/content
+        className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-[#25D366]/40 hover:scale-110 hover:rotate-12 transition-all duration-300 z-50"
         title="Chat with us"
       >
         <MessageCircle size={28} className="md:w-8 md:h-8" />
