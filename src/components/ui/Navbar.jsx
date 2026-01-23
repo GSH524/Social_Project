@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -6,12 +6,16 @@ import {
   doc, getDoc, collection, query, where, onSnapshot, deleteDoc, updateDoc, addDoc, serverTimestamp 
 } from "firebase/firestore";
 import { auth, db } from '../../firebase'; 
-import { FaUser, FaSearch, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
+import { 
+  FaUser, FaSearch, FaShoppingCart, FaHome, FaServicestack, 
+  FaInfoCircle, FaEnvelope, FaBell, FaSignOutAlt, FaThLarge, FaUserEdit, FaUserCircle 
+} from 'react-icons/fa';
 import { clearCart, setCart } from "../../slices/cartSlice";
 import toast, { Toaster } from 'react-hot-toast';
-import { Bell, X, Ticket, Package, Info, AlertCircle, Loader } from 'lucide-react';
+import { motion, AnimatePresence } from "framer-motion";
+import { AlertCircle, Ticket, Package, Info, X, Loader } from 'lucide-react';
 
-// ... (NavbarNotifications component remains exactly the same as you provided) ...
+// --- Notifications Component ---
 const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +34,6 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
 
   useEffect(() => {
     if (!user) return;
-    
     let q;
     if (isAdmin || isSuperAdmin) {
       q = query(collection(db, "notifications"), where("type", "==", "admin"));
@@ -94,7 +97,7 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
   return (
     <div className="relative" ref={dropdownRef}>
       <button onClick={() => setIsOpen(!isOpen)} className="relative p-2 text-slate-300 hover:text-white transition-colors">
-        <Bell size={22} />
+        <FaBell size={20} />
         {notifications.length > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border border-slate-900 animate-pulse"></span>}
       </button>
 
@@ -104,8 +107,8 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
             <h4 className="font-bold text-white text-sm">{(isAdmin || isSuperAdmin) ? 'Admin Alerts' : 'Notifications'}</h4>
             <button onClick={() => setIsOpen(false)}><X size={16} className="text-slate-500 hover:text-white"/></button>
           </div>
-          
-          <div className="max-h-[60vh] overflow-y-auto">
+           
+          <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
             {notifications.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500 italic">No new notifications</div>
             ) : (
@@ -134,31 +137,33 @@ const NavbarNotifications = ({ user, isAdmin, isSuperAdmin, onUpdateData }) => {
   );
 };
 
+// --- Main Navbar Component ---
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [isAuth, setIsAuth] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
+   
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const dropdownRef = useRef(null);
   const userIconRef = useRef(null);
-  
+   
   const cart = useSelector(state => state.cart); 
   const totalQuantity = useSelector(state => state.cart.totalQuantity);
+
+  // Helper function to check active path
+  const isActive = (path) => location.pathname === path;
 
   // --- AUTH & CART LOADING ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      
       if (user) {
         setIsAuth(true);
         localStorage.setItem("isAuthenticated", "true");
@@ -168,7 +173,6 @@ const Navbar = () => {
         if (savedCart) dispatch(setCart(JSON.parse(savedCart)));
         else dispatch(clearCart()); 
 
-        // 1. Fetch Profile Data (Try AdminDetails first, then Users)
         try {
           // Check Admin Collection
           const adminRef = doc(db, "adminDetails", user.uid);
@@ -176,10 +180,9 @@ const Navbar = () => {
 
           if (adminSnap.exists()) {
             const data = adminSnap.data();
-            setCurrentUser({ ...user, ...data }); // Merge Auth + Firestore Data
+            setCurrentUser({ ...user, ...data });
             setProfileImage(data.profileImage);
             setIsAdmin(true); 
-            // Super Admin Check (Email based fallback or add a role field in DB)
             if(user.email === "gudipatisrihari6@gmail.com") setIsSuperAdmin(true);
           } else {
             // Check User Collection
@@ -192,7 +195,6 @@ const Navbar = () => {
               setIsAdmin(false);
               setIsSuperAdmin(false);
             } else {
-              // Fallback if no doc exists yet
               setCurrentUser(user);
             }
           }
@@ -234,7 +236,7 @@ const Navbar = () => {
     return () => { document.removeEventListener("mousedown", handleClickOutside); };
   }, [showDropdown]);
 
-  useEffect(() => { setIsOpen(false); setShowDropdown(false); }, [location]);
+  useEffect(() => { setShowDropdown(false); }, [location]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -250,7 +252,6 @@ const Navbar = () => {
   };
 
   const getDesktopClass = (path) => location.pathname === path ? "text-blue-500 font-bold transition-colors" : "text-slate-300 hover:text-white transition-colors";
-  const getMobileClass = (path) => location.pathname === path ? "block px-3 py-2 rounded-md text-base font-medium text-white bg-slate-700" : "block px-3 py-2 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-700";
 
   const getDashboardLink = () => {
     if (isSuperAdmin) return "/superadmindashboard";
@@ -258,7 +259,6 @@ const Navbar = () => {
     return "/userdashboard";
   };
 
-  // Helper to display name
   const displayName = currentUser?.firstName 
     ? `${currentUser.firstName} ${currentUser.lastName || ''}` 
     : currentUser?.email;
@@ -271,6 +271,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20 gap-4 md:gap-8">
 
+          {/* LOGO */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-2 group">
             <div className="flex flex-col">
               <span className="text-xl md:text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors whitespace-nowrap">
@@ -280,6 +281,7 @@ const Navbar = () => {
             </div>
           </Link>
 
+          {/* SEARCH BAR (Desktop Only) */}
           <div className="hidden md:flex flex-1 max-w-lg mx-auto">
             <form onSubmit={handleSearch} className="w-full relative flex items-center">
               <input type="text" placeholder="Search for products..." className="w-full bg-slate-800 text-slate-200 text-sm rounded-full pl-5 pr-12 py-2.5 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-slate-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -287,13 +289,18 @@ const Navbar = () => {
             </form>
           </div>
 
+          {/* DESKTOP NAV */}
           <div className="hidden lg:flex items-center space-x-8 text-sm font-medium">
             <Link to="/" className={getDesktopClass("/")}>Home</Link>
             <Link to="/about" className={getDesktopClass("/about")}>About</Link>
             <Link to="/contact" className={getDesktopClass("/contact")}>Contact</Link>
           </div>
 
+          {/* ICONS (Cart, Profile, Notification) */}
           <div className="flex items-center gap-3 md:gap-5">
+            {/* Search Icon for Mobile */}
+            <button className="md:hidden text-slate-300 p-1" onClick={() => navigate('/search')}><FaSearch size={20}/></button>
+
             {isAuth && currentUser && (
               <NavbarNotifications user={currentUser} isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
             )}
@@ -303,71 +310,93 @@ const Navbar = () => {
               {totalQuantity > 0 && <span className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-blue-600 text-white text-[10px] font-bold h-4 w-4 md:h-5 md:w-5 rounded-full flex items-center justify-center border-2 border-slate-900">{totalQuantity}</span>}
             </Link>
 
+            {/* Profile Dropdown */}
             {isAuth ? (
-              <div className="relative hidden md:block">
+              <div className="relative">
                 <button ref={userIconRef} onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-2 focus:outline-none">
-                  <div className="h-9 w-9 rounded-full overflow-hidden border border-slate-600 hover:border-blue-500 transition-all">
+                  <div className="h-8 w-8 md:h-9 md:w-9 rounded-full overflow-hidden border border-slate-600 hover:border-blue-500 transition-all">
                     {profileImage ? <img src={profileImage} alt="User" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-slate-800 flex items-center justify-center text-slate-400"><FaUser size={14} /></div>}
                   </div>
                 </button>
 
-                {showDropdown && (
-                  <div ref={dropdownRef} className="absolute right-0 mt-3 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm animate-fade-in-up">
-                    <div className="px-4 py-2 border-b border-slate-700">
+                <AnimatePresence>
+                  {showDropdown && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                        ref={dropdownRef} 
+                        className="absolute right-0 mt-3 w-60 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50 text-sm origin-top-right"
+                    >
+                      <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
                         <p className="text-slate-400 text-xs">Signed in as</p>
                         <p className="text-white font-medium truncate" title={currentUser?.email}>{displayName}</p>
-                        {isSuperAdmin && <span className="text-[10px] text-rose-400 font-bold uppercase">Super Admin</span>}
-                        {isAdmin && !isSuperAdmin && <span className="text-[10px] text-violet-400 font-bold uppercase">Admin</span>}
-                    </div>
-                    <Link to={getDashboardLink()} className="block px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</Link>
-                    <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-red-400 hover:bg-slate-700 hover:text-red-300">Sign out</button>
-                  </div>
-                )}
+                        {isSuperAdmin && <span className="text-[10px] text-rose-400 font-bold uppercase tracking-wider">Super Admin</span>}
+                        {isAdmin && !isSuperAdmin && <span className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">Admin</span>}
+                      </div>
+                       
+                      <div className="p-1">
+                          <Link to={getDashboardLink()} onClick={() => setShowDropdown(false)} className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-slate-700 hover:text-white rounded-md transition-colors"><FaThLarge className="text-blue-500"/> Dashboard</Link>
+                          <Link to="/profile-edit" onClick={() => setShowDropdown(false)} className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-slate-700 hover:text-white rounded-md transition-colors"><FaUserEdit className="text-blue-500"/> Edit Profile</Link>
+                          <div className="h-px bg-slate-700 my-1 mx-2"></div>
+                          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-red-400 hover:bg-slate-700 hover:text-red-300 rounded-md transition-colors text-left"><FaSignOutAlt/> Sign out</button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
-              <button onClick={() => navigate("/login")} className="hidden md:block text-slate-300 hover:text-white transition-colors"><FaUser size={22} /></button>
+              <div className="flex items-center gap-2">
+                  <Link to="/login" className="hidden md:block text-slate-300 hover:text-white font-medium text-sm">Login</Link>
+                  <Link to="/signup" className="hidden md:block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold transition-colors">Sign Up</Link>
+                  <button onClick={() => navigate("/login")} className="md:hidden text-slate-300 hover:text-white"><FaUserCircle size={24}/></button>
+              </div>
             )}
-
-            <button className="md:hidden text-slate-300 p-1" onClick={() => setIsOpen(!isOpen)}>{isOpen ? <FaTimes size={22} /> : <FaBars size={22} />}</button>
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {isOpen && (
-        <div className="md:hidden bg-slate-800 border-t border-slate-700 absolute w-full left-0 z-40 shadow-xl">
-          <div className="px-4 pt-4 pb-6 space-y-4">
-            <form onSubmit={handleSearch} className="flex items-center">
-               <input type="text" placeholder="Search products..." className="w-full bg-slate-900 text-white rounded-lg px-4 py-3 text-sm border border-slate-700 outline-none focus:border-blue-500" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/>
-            </form>
-            <div className="flex flex-col space-y-1">
-              <Link to="/" className={getMobileClass("/")} onClick={() => setIsOpen(false)}>Home</Link>
-              <Link to="/about" className={getMobileClass("/about")} onClick={() => setIsOpen(false)}>About</Link>
-              <Link to="/contact" className={getMobileClass("/contact")} onClick={() => setIsOpen(false)}>Contact</Link>
-            </div>
-            <div className="border-t border-slate-700 pt-4">
-              {isAuth ? (
-                <div className="flex items-center gap-3 px-1">
-                  <div className="h-10 w-10 flex-shrink-0 rounded-full bg-slate-600 overflow-hidden flex items-center justify-center">
-                    {profileImage ? <img src={profileImage} alt="profile" className="w-full h-full object-cover"/> : <FaUser className="text-white"/>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">{displayName}</div>
-                    <Link to={getDashboardLink()} onClick={() => setIsOpen(false)} className="text-sm text-blue-400 hover:text-blue-300 block mt-0.5">View Dashboard</Link>
-                  </div>
-                  <button onClick={() => { handleLogout(); setIsOpen(false); }} className="text-red-400 text-sm hover:text-red-300 font-medium whitespace-nowrap">Logout</button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                   <Link to="/login" onClick={() => setIsOpen(false)} className="text-center py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-600 font-medium text-sm">Login</Link>
-                   <Link to="/signup" onClick={() => setIsOpen(false)} className="text-center py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500 font-medium text-sm">Sign Up</Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </nav>
+
+    {/* --- MOBILE BOTTOM NAVIGATION (UPDATED FOR E-COMMERCE) --- */}
+    <div className="md:hidden fixed bottom-0 left-0 w-full bg-[#0f172a]/95 backdrop-blur-xl border-t border-slate-800 flex justify-around items-center z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.3)] h-16">
+      
+      {/* 1. HOME */}
+      <Link to="/" className={`flex flex-col items-center gap-1 w-16 ${isActive('/') ? 'text-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
+        <FaHome size={20} />
+        <span className="text-[10px] font-medium">Home</span>
+      </Link>
+
+      {/* 2. SEARCH */}
+      <Link to="/search" className={`flex flex-col items-center gap-1 w-16 ${isActive('/search') ? 'text-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
+        <FaSearch size={20} />
+        <span className="text-[10px] font-medium">Search</span>
+      </Link>
+
+      {/* 3. CART (With Badge) */}
+      <Link to="/cart" className={`relative flex flex-col items-center gap-1 w-16 ${isActive('/cart') ? 'text-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
+        <div className="relative">
+          <FaShoppingCart size={20} />
+          {totalQuantity > 0 && (
+            <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-slate-900 animate-in zoom-in">
+              {totalQuantity}
+            </span>
+          )}
+        </div>
+        <span className="text-[10px] font-medium">Cart</span>
+      </Link>
+
+      {/* 4. PROFILE (Dynamic: Login or Dashboard) */}
+      <Link 
+        to={isAuth ? getDashboardLink() : "/login"} 
+        className={`flex flex-col items-center gap-1 w-16 ${isActive('/login') || isActive(getDashboardLink()) ? 'text-blue-500' : 'text-slate-500 hover:text-slate-300'}`}
+      >
+        {isAuth && profileImage ? (
+          <img src={profileImage} alt="Profile" className="h-5 w-5 rounded-full border border-slate-600 object-cover" />
+        ) : (
+          <FaUser size={20} />
+        )}
+        <span className="text-[10px] font-medium">{isAuth ? "Account" : "Login"}</span>
+      </Link>
+      
+    </div>
     </>
   );
 };
