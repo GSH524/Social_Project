@@ -3,12 +3,28 @@ import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "fire
 import { setDoc, doc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
-// 1. Import React Hot Toast
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   FaEye, FaEyeSlash, FaUser, FaEnvelope, FaPhone, 
   FaMapMarkerAlt, FaLock, FaCamera, FaGlobe, FaBuilding
 } from "react-icons/fa";
+
+// --- FIX: InputField moved OUTSIDE the Signup component ---
+const InputField = ({ icon: Icon, type, placeholder, value, setValue, required = true }) => (
+  <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
+    <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white">
+      <Icon />
+    </span>
+    <input 
+      type={type} 
+      placeholder={placeholder} 
+      value={value} 
+      onChange={(e) => setValue(e.target.value)} 
+      required={required}
+      className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-white/60 min-w-0"
+    />
+  </div>
+);
 
 const Signup = () => {
   const [firstName, setFirstName] = useState("");
@@ -26,7 +42,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // Added loading state
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -97,12 +113,11 @@ const Signup = () => {
         createdAt: new Date(),
       });
 
-      // 2. Success Toast
       toast.success("Account created successfully!", {
         duration: 2000,
         position: 'top-center',
         style: {
-          background: "rgba(16, 185, 129, 0.9)", // Emerald green
+          background: "rgba(16, 185, 129, 0.9)",
           backdropFilter: "blur(10px)",
           color: "#fff",
           border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -116,7 +131,7 @@ const Signup = () => {
       setError(err.message);
       toast.error("Signup Failed", {
         style: {
-          background: "rgba(239, 68, 68, 0.9)", // Red
+          background: "rgba(239, 68, 68, 0.9)",
           color: "#fff",
         }
       });
@@ -134,33 +149,13 @@ const Signup = () => {
       #2b213a`
   };
 
-  // Helper component for cleaner code
-  const InputField = ({ icon: Icon, type, placeholder, value, setValue, required = true }) => (
-    <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
-      <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white">
-        <Icon />
-      </span>
-      <input 
-        type={type} 
-        placeholder={placeholder} 
-        value={value} 
-        onChange={(e) => setValue(e.target.value)} 
-        required={required}
-        className="flex-1 bg-transparent border-none outline-none text-white text-sm font-medium placeholder-white/60 min-w-0"
-      />
-    </div>
-  );
-
   return (
     <div 
       className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 font-sans overflow-y-auto" 
       style={bgStyle}
     >
-      
-      {/* 3. Toaster Component */}
       <Toaster />
 
-      {/* Signup Card */}
       <div className="w-full max-w-[340px] sm:max-w-md md:max-w-lg bg-white/10 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-[30px] p-6 sm:p-8 md:p-10 text-center relative overflow-hidden my-8 animate-[fadeUp_0.8s_ease-out]">
         
         <h2 className="text-2xl sm:text-3xl font-bold mb-1 tracking-wide text-white">Create Account</h2>
@@ -192,7 +187,7 @@ const Signup = () => {
           {/* Input Fields Container */}
           <div className="space-y-4">
             
-            {/* Row 1: First Name & Last Name (Side by Side) */}
+            {/* Row 1: First Name & Last Name */}
             <div className="flex gap-4">
                <InputField icon={FaUser} type="text" placeholder="First Name" value={firstName} setValue={setFirstName} />
                <InputField icon={FaUser} type="text" placeholder="Last Name" value={lastName} setValue={setLastName} />
@@ -201,7 +196,7 @@ const Signup = () => {
             {/* Email */}
             <InputField icon={FaEnvelope} type="email" placeholder="Email Address" value={email} setValue={setEmail} />
 
-            {/* Mobile */}
+            {/* Mobile (Kept as is because it was custom) */}
             <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group">
               <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 transform -scale-x-100 group-focus-within:text-white"><FaPhone /></span>
               <input 
@@ -217,7 +212,7 @@ const Signup = () => {
             {/* Address */}
             <InputField icon={FaMapMarkerAlt} type="text" placeholder="Address" value={address} setValue={setAddress} />
 
-            {/* Row 2: City & Pincode (Side by Side) */}
+            {/* Row 2: City & Pincode */}
             <div className="flex gap-4">
                <InputField icon={FaBuilding} type="text" placeholder="City" value={city} setValue={setCity} />
                <InputField icon={FaMapMarkerAlt} type="text" placeholder="Pincode" value={pincode} setValue={setPincode} />
@@ -226,7 +221,7 @@ const Signup = () => {
             {/* Country */}
             <InputField icon={FaGlobe} type="text" placeholder="Country" value={country} setValue={setCountry} />
 
-            {/* Password (Full Width) */}
+            {/* Password */}
             <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
               <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white"><FaLock /></span>
               <input 
@@ -242,7 +237,7 @@ const Signup = () => {
               </span>
             </div>
 
-            {/* Confirm Password (Full Width - New Line) */}
+            {/* Confirm Password */}
             <div className="relative flex items-center border-b border-white/40 pb-2 transition-colors duration-300 focus-within:border-white group w-full">
               <span className="text-white/80 mr-2 sm:mr-3 text-base flex justify-center w-5 group-focus-within:text-white"><FaLock /></span>
               <input 
