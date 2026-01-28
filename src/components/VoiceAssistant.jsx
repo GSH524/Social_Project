@@ -110,8 +110,8 @@ const VoiceAssistant = ({ isOpen, onClose }) => {
     }
 
     // --- ADD TO CART COMMANDS ---
-    else if (command.includes('add') && command.includes('to cart')) {
-        const itemToBuy = command.split('add')[1].split('to cart')[0].trim();
+    else if (command.includes('add') && command.includes('to basket')) {
+        const itemToBuy = command.split('add')[1].split('to basket')[0].trim();
         handleAddToCart(itemToBuy);
     }
     else if (command.includes('buy')) {
