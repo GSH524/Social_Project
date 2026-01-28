@@ -231,13 +231,15 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20 gap-4">
 
-            {/* 1. LOGO */}
-            <Link to="/" className="flex-shrink-0 flex flex-col group cursor-pointer z-50">
-              <span className="text-2xl font-black tracking-tighter text-white group-hover:text-blue-400 transition-colors">
-                GSH<span className="text-blue-600">.</span>
+           {/* LOGO */}
+          <Link to="/" className="flex-shrink-0 flex items-center gap-2 group">
+            <div className="flex flex-col">
+              <span className="text-xl md:text-2xl font-bold tracking-tighter text-white group-hover:text-blue-400 transition-colors whitespace-nowrap">
+                GSH<span className="text-blue-500">.</span>STORE
               </span>
-              <span className="text-[9px] font-bold tracking-[0.2em] text-slate-500 uppercase -mt-1 group-hover:text-slate-300 transition-colors hidden sm:block">Store</span>
-            </Link>
+              <span className="text-[8px] md:text-[10px] tracking-widest text-slate-400 uppercase -mt-1 hidden sm:block">Premium Collection</span>
+            </div>
+          </Link>
 
             {/* 2. SEARCH BAR (Desktop) */}
             <div className="hidden md:flex flex-1 max-w-lg mx-8 relative">
