@@ -28,7 +28,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { 
   Loader, User, ShoppingBag, CreditCard, LayoutDashboard, 
   TrendingUp, Package, DollarSign, MapPin, 
-  AlertCircle, CheckCircle, ChevronRight, ShoppingCart, Star, Camera, Filter, Calendar, Clock, RefreshCw, XCircle
+  AlertCircle, CheckCircle, ChevronRight, ShoppingCart, Star, Camera, Filter, Calendar, Clock, RefreshCw, XCircle, Truck
 } from 'lucide-react';
 
 // --- CHART JS IMPORTS ---
@@ -225,7 +225,7 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
 };
 
 // ==========================================
-//  SUB-COMPONENT: ORDERS TAB (UPDATED WITH CANCEL & RETURN LOGIC)
+//  SUB-COMPONENT: ORDERS TAB (UPDATED WITH TRACKING & DATES)
 // ==========================================
 const OrdersTab = ({ orders, onActionClick, onBuyAgain }) => {
   return (
@@ -233,82 +233,63 @@ const OrdersTab = ({ orders, onActionClick, onBuyAgain }) => {
       {orders.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {orders.map(order => {
-            // --- 7-DAY RETURN & CANCEL LOGIC ---
             const isDelivered = order.order_status === 'Delivered';
             const isReturned = order.order_status === 'Returned';
+            const isCancelled = order.order_status === 'Cancelled';
             const isCancellable = ['Pending', 'Processing', 'Shipped'].includes(order.order_status);
+            
+            // --- DATE LOGIC ---
+            const orderDate = new Date(order.order_date);
+            const deliveryDate = new Date(orderDate);
+            deliveryDate.setDate(orderDate.getDate() + 5); // Estimated delivery: +5 days
+
+            const today = new Date();
+            const diffTime = Math.abs(today - orderDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             
             let isReturnWindowClosed = false;
             let daysLeft = 0;
-
+            
             if (isDelivered) {
-                const orderDate = new Date(order.order_date);
-                const today = new Date();
-                const diffTime = Math.abs(today - orderDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                if (diffDays > 7) {
-                    isReturnWindowClosed = true;
-                } else {
-                    daysLeft = 8 - diffDays; 
-                }
+                if (diffDays > 7) isReturnWindowClosed = true;
+                else daysLeft = 8 - diffDays;
             }
 
-            // Decide Button State
+            // --- TRACKING STEPS LOGIC ---
+            const steps = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+            let currentStepIndex = steps.indexOf(order.order_status);
+            if (isReturned) currentStepIndex = 4; 
+            if (isCancelled) currentStepIndex = -1;
+
+            // --- BUTTON LOGIC ---
             let ButtonComponent = null;
 
             if (isReturned) {
-                // Case 1: Returned -> Show Buy Again
                 ButtonComponent = (
-                    <button 
-                        onClick={() => onBuyAgain(order.items[0])} 
-                        className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-violet-900/20"
-                    >
-                        <RefreshCw size={14} /> Buy Again
-                    </button>
+                    <button onClick={() => onBuyAgain(order.items[0])} className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-violet-900/20"><RefreshCw size={14} /> Buy Again</button>
                 );
             } else if (isCancellable) {
-                // Case 2: Cancellable Order
                 ButtonComponent = (
-                    <button 
-                        onClick={() => onActionClick(order, 'cancel')} 
-                        className="w-full bg-rose-600 hover:bg-rose-500 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                    >
-                        <XCircle size={14} /> Cancel Order
-                    </button>
+                    <button onClick={() => onActionClick(order, 'cancel')} className="w-full bg-rose-600 hover:bg-rose-500 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"><XCircle size={14} /> Cancel Order</button>
                 );
             } else if (isDelivered && isReturnWindowClosed) {
-                // Case 3: Return Window Closed
                 ButtonComponent = (
-                    <button disabled className="w-full bg-slate-800 text-slate-500 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed">
-                        Return Window Closed
-                    </button>
+                    <button disabled className="w-full bg-slate-800 text-slate-500 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed">Return Window Closed</button>
                 );
             } else if (isDelivered && !isReturnWindowClosed) {
-                // Case 4: Return Available
                 ButtonComponent = (
                     <div className="flex flex-col gap-2 w-full">
-                        <button onClick={() => onActionClick(order, 'return')} className="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 py-2 rounded-lg text-xs font-bold transition-colors">
-                            Return Item
-                        </button>
-                        <div className="text-[10px] text-emerald-400 flex items-center justify-center gap-1 bg-emerald-900/20 py-1 rounded border border-emerald-900/30">
-                            <Clock size={10} /> {daysLeft} days left to return
-                        </div>
+                        <button onClick={() => onActionClick(order, 'return')} className="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 py-2 rounded-lg text-xs font-bold transition-colors">Return Item</button>
+                        <div className="text-[10px] text-emerald-400 flex items-center justify-center gap-1 bg-emerald-900/20 py-1 rounded border border-emerald-900/30"><Clock size={10} /> {daysLeft} days left to return</div>
                     </div>
                 );
             } else if (order.order_status === 'Return Requested') {
-                // Case 5: Return Processing
                 ButtonComponent = (
-                    <button disabled className="w-full bg-slate-800 text-slate-400 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2">
-                        <Loader size={12} className="animate-spin"/> Return Processing
-                    </button>
+                    <button disabled className="w-full bg-slate-800 text-slate-400 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2"><Loader size={12} className="animate-spin"/> Return Processing</button>
                 );
             } else {
-                // Case 6: Cancelled
                 ButtonComponent = (
-                    <button disabled className="w-full bg-slate-800 text-slate-500 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed">
-                        Cancelled
-                    </button>
+                    <button disabled className="w-full bg-slate-800 text-slate-500 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed">Cancelled</button>
                 );
             }
 
@@ -317,6 +298,7 @@ const OrdersTab = ({ orders, onActionClick, onBuyAgain }) => {
                  <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-violet-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
                  
                  <div>
+                     {/* Header: ID + Status Badge */}
                      <div className="flex justify-between items-start mb-4 relative z-10">
                         <div>
                             <span className="text-violet-400 font-mono font-bold text-xs bg-violet-500/10 px-2 py-1 rounded border border-violet-500/20 block w-fit mb-1">#{order.order_id.toString().slice(0,8)}</span>
@@ -327,6 +309,7 @@ const OrdersTab = ({ orders, onActionClick, onBuyAgain }) => {
                         </span>
                      </div>
 
+                     {/* Product Info */}
                      <div className="flex items-center gap-3 mb-4 bg-slate-950/50 p-3 rounded-xl border border-slate-800">
                         <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 shrink-0">
                             <Package size={18} className="text-slate-400"/>
@@ -336,6 +319,27 @@ const OrdersTab = ({ orders, onActionClick, onBuyAgain }) => {
                             <p className="text-xs text-slate-500 truncate max-w-[150px]">{order.items[0]?.product_name}</p>
                         </div>
                      </div>
+
+                     {/* Tracking Progress Bar */}
+                     {!isCancelled && !isReturned && order.order_status !== 'Return Requested' && (
+                         <div className="mb-4">
+                             <div className="flex justify-between text-[10px] text-slate-400 mb-1 font-medium uppercase tracking-wide">
+                                 <span>Ordered</span>
+                                 <span>Shipped</span>
+                                 <span>Delivered</span>
+                             </div>
+                             <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                 <div 
+                                     className="h-full bg-gradient-to-r from-blue-600 to-violet-500 rounded-full transition-all duration-1000"
+                                     style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
+                                 ></div>
+                             </div>
+                             <div className="flex justify-between items-center mt-2 text-[10px]">
+                                 <span className="text-slate-500">Est. Delivery:</span>
+                                 <span className="text-emerald-400 font-bold flex items-center gap-1"><Truck size={10}/> {deliveryDate.toLocaleDateString()}</span>
+                             </div>
+                         </div>
+                     )}
                  </div>
 
                  <div className="mt-2 pt-4 border-t border-slate-800">
