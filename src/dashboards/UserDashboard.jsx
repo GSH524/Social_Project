@@ -21,14 +21,14 @@ import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, onSnapshot, serverTimestamp 
 } from "firebase/firestore";
 
-// --- REACT HOT TOAST (Updated) ---
+// --- REACT HOT TOAST ---
 import toast, { Toaster } from 'react-hot-toast';
 
 // --- ICONS ---
 import { 
   Loader, User, ShoppingBag, CreditCard, LayoutDashboard, 
-  TrendingUp, Package, DollarSign, MapPin, Phone, 
-  AlertCircle, CheckCircle, ChevronRight, ShoppingCart, Star, Camera, Filter, Calendar
+  TrendingUp, Package, DollarSign, MapPin, 
+  AlertCircle, CheckCircle, ChevronRight, ShoppingCart, Star, Camera, Filter, Calendar, Clock, RefreshCw, XCircle
 } from 'lucide-react';
 
 // --- CHART JS IMPORTS ---
@@ -42,6 +42,10 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointEleme
 ChartJS.defaults.color = '#94a3b8';
 ChartJS.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
 ChartJS.defaults.font.family = "'Inter', sans-serif";
+
+// --- REASONS CONSTANTS ---
+const RETURN_REASONS = ['Wrong Size', 'Damaged Product', 'Quality Issues', 'Received Wrong Item', 'Other'];
+const CANCEL_REASONS = ['Found Cheaper Elsewhere', 'Change of Mind', 'Order Created by Mistake', 'Delivery Time too Long', 'Other'];
 
 // ==========================================
 //  SUB-COMPONENT: FEATURED PRODUCTS
@@ -95,7 +99,6 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
     const kpiTotalSpend = orders.filter(o => !['Cancelled', 'Returned'].includes(o.order_status)).reduce((acc, curr) => acc + curr.order_total_amount, 0);
     const formatRupees = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   
-    // --- CHARTS DATA PREP ---
     const validOrders = orders.filter(o => !['Cancelled', 'Returned'].includes(o.order_status));
     const dailySpendData = {};
     validOrders.forEach(o => {
@@ -123,14 +126,13 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
   
     return (
       <div className="animate-fade-in-up">
-        {/* UPDATED FILTERS */}
+        {/* FILTERS */}
         <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl mb-8 backdrop-blur-sm shadow-lg flex flex-col gap-3">
             <div className="flex items-center gap-2 text-violet-400 font-bold uppercase text-xs tracking-widest border-b border-slate-800/50 pb-2 mb-1">
               <Filter size={14}/> Data Filters
             </div>
             
             <div className="flex overflow-x-auto pb-2 gap-3 w-full scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
-               {/* Year */}
                <div className="min-w-[130px] flex-1 md:min-w-0">
                   <label className="text-xs text-slate-500 mb-1 block ml-1">Year</label>
                   <div className="relative">
@@ -140,7 +142,6 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
                     </select>
                   </div>
                </div>
-               {/* Month */}
                <div className="min-w-[130px] flex-1 md:min-w-0">
                   <label className="text-xs text-slate-500 mb-1 block ml-1">Month</label>
                   <div className="relative">
@@ -150,7 +151,6 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
                     </select>
                   </div>
                </div>
-               {/* Category */}
                <div className="min-w-[130px] flex-1 md:min-w-0">
                   <label className="text-xs text-slate-500 mb-1 block ml-1">Category</label>
                   <div className="relative">
@@ -225,34 +225,136 @@ const OverviewTab = ({ orders, displayData, filters, setFilters, availableMonths
 };
 
 // ==========================================
-//  SUB-COMPONENT: ORDERS TAB
+//  SUB-COMPONENT: ORDERS TAB (UPDATED WITH CANCEL & RETURN LOGIC)
 // ==========================================
-const OrdersTab = ({ orders, onReturnClick }) => {
+const OrdersTab = ({ orders, onActionClick, onBuyAgain }) => {
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden backdrop-blur-xl animate-fade-in-up shadow-xl">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[700px]">
-          <thead>
-            <tr className="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
-              <th className="p-4 md:p-5">Order ID</th><th className="p-4 md:p-5">Date</th><th className="p-4 md:p-5">Items</th><th className="p-4 md:p-5">Amount</th><th className="p-4 md:p-5">Status</th><th className="p-4 md:p-5 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800 text-sm">
-            {orders.length > 0 ? orders.map(order => (
-              <tr key={order.order_id} className="hover:bg-slate-800/30 transition-colors">
-                <td className="p-4 md:p-5 font-mono text-violet-300">#{order.order_id.toString().slice(0,8)}</td>
-                <td className="p-4 md:p-5 text-slate-300">{new Date(order.order_date).toLocaleDateString()}</td>
-                <td className="p-4 md:p-5 text-slate-400">{order.items.length}</td>
-                <td className="p-4 md:p-5 font-bold text-white">${order.order_total_amount.toFixed(2)}</td>
-                <td className="p-4 md:p-5"><span className={`px-2 py-1 text-xs rounded border ${order.order_status === 'Delivered' ? 'border-emerald-500 text-emerald-400' : 'border-violet-500 text-violet-400'}`}>{order.order_status}</span></td>
-                <td className="p-4 md:p-5 text-center">
-                  <button onClick={() => onReturnClick(order)} disabled={['Returned', 'Cancelled', 'Return Requested'].includes(order.order_status)} className="bg-rose-500/10 text-rose-500 px-3 py-1 rounded text-xs font-bold disabled:opacity-30">Return</button>
-                </td>
-              </tr>
-            )) : <tr><td colSpan="6" className="p-8 text-center text-slate-500 italic">No orders found.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+    <div className="animate-fade-in-up">
+      {orders.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {orders.map(order => {
+            // --- 7-DAY RETURN & CANCEL LOGIC ---
+            const isDelivered = order.order_status === 'Delivered';
+            const isReturned = order.order_status === 'Returned';
+            const isCancellable = ['Pending', 'Processing', 'Shipped'].includes(order.order_status);
+            
+            let isReturnWindowClosed = false;
+            let daysLeft = 0;
+
+            if (isDelivered) {
+                const orderDate = new Date(order.order_date);
+                const today = new Date();
+                const diffTime = Math.abs(today - orderDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays > 7) {
+                    isReturnWindowClosed = true;
+                } else {
+                    daysLeft = 8 - diffDays; 
+                }
+            }
+
+            // Decide Button State
+            let ButtonComponent = null;
+
+            if (isReturned) {
+                // Case 1: Returned -> Show Buy Again
+                ButtonComponent = (
+                    <button 
+                        onClick={() => onBuyAgain(order.items[0])} 
+                        className="w-full bg-violet-600 hover:bg-violet-500 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-violet-900/20"
+                    >
+                        <RefreshCw size={14} /> Buy Again
+                    </button>
+                );
+            } else if (isCancellable) {
+                // Case 2: Cancellable Order
+                ButtonComponent = (
+                    <button 
+                        onClick={() => onActionClick(order, 'cancel')} 
+                        className="w-full bg-rose-600 hover:bg-rose-500 text-white py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                    >
+                        <XCircle size={14} /> Cancel Order
+                    </button>
+                );
+            } else if (isDelivered && isReturnWindowClosed) {
+                // Case 3: Return Window Closed
+                ButtonComponent = (
+                    <button disabled className="w-full bg-slate-800 text-slate-500 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed">
+                        Return Window Closed
+                    </button>
+                );
+            } else if (isDelivered && !isReturnWindowClosed) {
+                // Case 4: Return Available
+                ButtonComponent = (
+                    <div className="flex flex-col gap-2 w-full">
+                        <button onClick={() => onActionClick(order, 'return')} className="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 py-2 rounded-lg text-xs font-bold transition-colors">
+                            Return Item
+                        </button>
+                        <div className="text-[10px] text-emerald-400 flex items-center justify-center gap-1 bg-emerald-900/20 py-1 rounded border border-emerald-900/30">
+                            <Clock size={10} /> {daysLeft} days left to return
+                        </div>
+                    </div>
+                );
+            } else if (order.order_status === 'Return Requested') {
+                // Case 5: Return Processing
+                ButtonComponent = (
+                    <button disabled className="w-full bg-slate-800 text-slate-400 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2">
+                        <Loader size={12} className="animate-spin"/> Return Processing
+                    </button>
+                );
+            } else {
+                // Case 6: Cancelled
+                ButtonComponent = (
+                    <button disabled className="w-full bg-slate-800 text-slate-500 border border-slate-700 py-2 rounded-lg text-xs font-bold cursor-not-allowed">
+                        Cancelled
+                    </button>
+                );
+            }
+
+            return (
+              <div key={order.order_id} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl hover:border-slate-700 transition-all group flex flex-col justify-between relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-violet-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
+                 
+                 <div>
+                     <div className="flex justify-between items-start mb-4 relative z-10">
+                        <div>
+                            <span className="text-violet-400 font-mono font-bold text-xs bg-violet-500/10 px-2 py-1 rounded border border-violet-500/20 block w-fit mb-1">#{order.order_id.toString().slice(0,8)}</span>
+                            <span className="text-slate-400 text-xs flex items-center gap-1"><Calendar size={12}/> {new Date(order.order_date).toLocaleDateString()}</span>
+                        </div>
+                        <span className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border ${order.order_status === 'Delivered' ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10' : order.order_status === 'Returned' ? 'border-rose-500 text-rose-400 bg-rose-500/10' : 'border-violet-500 text-violet-400 bg-violet-500/10'}`}>
+                            {order.order_status}
+                        </span>
+                     </div>
+
+                     <div className="flex items-center gap-3 mb-4 bg-slate-950/50 p-3 rounded-xl border border-slate-800">
+                        <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700 shrink-0">
+                            <Package size={18} className="text-slate-400"/>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-white">{order.items.length} Item{order.items.length > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-slate-500 truncate max-w-[150px]">{order.items[0]?.product_name}</p>
+                        </div>
+                     </div>
+                 </div>
+
+                 <div className="mt-2 pt-4 border-t border-slate-800">
+                     <div className="flex justify-between items-center mb-4">
+                         <span className="text-xs text-slate-400 uppercase font-bold">Total Amount</span>
+                         <span className="text-lg font-bold text-white">${order.order_total_amount.toFixed(2)}</span>
+                     </div>
+                     {ButtonComponent}
+                 </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-2xl">
+            <Package size={48} className="text-slate-700 mx-auto mb-4"/>
+            <p className="text-slate-500 italic">No orders found.</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -262,23 +364,55 @@ const OrdersTab = ({ orders, onReturnClick }) => {
 // ==========================================
 const PaymentsTab = ({ orders }) => {
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden animate-fade-in-up shadow-xl">
-       <div className="p-5 border-b border-slate-800"><h3 className="text-lg font-bold text-white flex items-center gap-2"><CreditCard size={20} className="text-emerald-500"/> Payment History</h3></div>
-       <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[700px]">
-              <thead><tr className="bg-slate-950 text-slate-400 text-xs uppercase border-b border-slate-800"><th className="p-4 md:p-5">Ref ID</th><th className="p-4 md:p-5">Order</th><th className="p-4 md:p-5">Method</th><th className="p-4 md:p-5 text-right">Amount</th><th className="p-4 md:p-5 text-center">Status</th></tr></thead>
-              <tbody className="divide-y divide-slate-800 text-sm">
-                  {orders.map(o => (
-                      <tr key={o.order_id} className="hover:bg-slate-800/30">
-                          <td className="p-4 md:p-5 font-mono text-slate-500">TXN-{o.order_id.toString().slice(0,6)}</td>
-                          <td className="p-4 md:p-5 text-violet-400">#{o.order_id.toString().slice(0,8)}</td>
-                          <td className="p-4 md:p-5 text-white">{o.payment_method}</td>
-                          <td className="p-4 md:p-5 text-right font-bold text-white">${o.order_total_amount.toFixed(2)}</td>
-                          <td className="p-4 md:p-5 text-center"><span className="text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full text-xs font-bold uppercase">Paid</span></td>
-                      </tr>
-                  ))}
-              </tbody>
-          </table>
+    <div className="animate-fade-in-up">
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {orders.map(o => (
+              <div key={o.order_id} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl hover:border-slate-700 transition-all flex flex-col justify-between">
+                  <div>
+                      <div className="flex justify-between items-start mb-4">
+                          <div>
+                              <p className="text-xs text-slate-500 uppercase font-bold mb-1">Transaction ID</p>
+                              <span className="font-mono text-violet-300 text-sm bg-violet-500/10 px-2 py-1 rounded border border-violet-500/20">TXN-{o.order_id.toString().slice(0,6)}</span>
+                          </div>
+                          <div className="text-right">
+                              <p className="text-xs text-slate-500 uppercase font-bold mb-1">Amount</p>
+                              <span className="text-lg font-bold text-white">${o.order_total_amount.toFixed(2)}</span>
+                          </div>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                          <div className="flex justify-between text-sm">
+                              <span className="text-slate-400">Order Ref</span>
+                              <span className="text-white">#{o.order_id.toString().slice(0,8)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                              <span className="text-slate-400">Method</span>
+                              <span className="text-white flex items-center gap-1"><CreditCard size={12}/> {o.payment_method}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                              <span className="text-slate-400">Date</span>
+                              <span className="text-white">{new Date(o.order_date).toLocaleDateString()}</span>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800">
+                      {o.order_status === 'Returned' ? (
+                          <div className="w-full bg-emerald-500/10 border border-emerald-500/20 py-2 rounded-lg flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold uppercase">
+                              <CheckCircle size={14} /> Refunded
+                          </div>
+                      ) : o.order_status === 'Return Requested' ? (
+                          <div className="w-full bg-amber-500/10 border border-amber-500/20 py-2 rounded-lg flex items-center justify-center gap-2 text-amber-400 text-xs font-bold uppercase">
+                              <Loader size={14} className="animate-spin" /> Refund Pending
+                          </div>
+                      ) : (
+                          <div className="w-full bg-emerald-500/10 border border-emerald-500/20 py-2 rounded-lg flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold uppercase">
+                              <CheckCircle size={14} /> Paid Successfully
+                          </div>
+                      )}
+                  </div>
+              </div>
+          ))}
        </div>
     </div>
   );
@@ -339,11 +473,12 @@ const UserDashboard = () => {
   const [filters, setFilters] = useState({ year: 'All', month: 'All', category: 'All' });
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFormData, setEditFormData] = useState({});
-  const [returnModalOpen, setReturnModalOpen] = useState(false);
-  const [selectedReturnOrder, setSelectedReturnOrder] = useState(null);
-  const [returnReason, setReturnReason] = useState("Wrong Size");
+  const [modalOpen, setModalOpen] = useState(false); // Shared modal for Cancel & Return
+  const [actionType, setActionType] = useState(null); // 'cancel' or 'return'
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedReason, setSelectedReason] = useState("");
 
-  // ... (useEffect for data fetching - KEEP EXISTING) ...
+  // Fetch Data
   useEffect(() => {
     let unsubscribeOrders = () => {}; 
     const init = async () => {
@@ -370,7 +505,7 @@ const UserDashboard = () => {
     return () => unsubscribeOrders();
   }, [user]);
 
-  // ... (useEffect for products - KEEP EXISTING) ...
+  // Sort Products
   useEffect(() => {
     if (products.length > 0 && staticItems.length > 0) {
         const productSales = {};
@@ -380,7 +515,7 @@ const UserDashboard = () => {
     }
   }, []);
 
-  // ... (memos for displayData, rawData, filteredOrders - KEEP EXISTING) ...
+  // Memos
   const matchedCustomer = useMemo(() => user?.email ? customers.find(c => c.customer_email.toLowerCase() === user.email.toLowerCase()) : null, [user]);
   const customerAddressObj = useMemo(() => matchedCustomer ? staticAddresses.find(a => a.customer_id === matchedCustomer.customer_id) : null, [matchedCustomer]);
   const displayData = useMemo(() => ({
@@ -408,7 +543,6 @@ const UserDashboard = () => {
       return (filters.year === 'All' || d.getFullYear() === parseInt(filters.year)) && (filters.month === 'All' || d.toLocaleString('default', { month: 'short' }) === filters.month) && (filters.category === 'All' || order.items.some(i => i.category === filters.category));
   }), [rawData, filters]);
 
-  // ... (handleAddToCart, handleProfileSave, openReturnModal - KEEP EXISTING) ...
   const handleAddToCart = (product) => { 
       dispatch(addItem({ product_id: product.product_id, product_name: product.product_name, image_url: product.image_url, selling_unit_price: product.selling_unit_price })); 
       toast.success("Added to cart!", { 
@@ -432,46 +566,78 @@ const UserDashboard = () => {
       } 
   };
 
-  const openReturnModal = (order) => { setSelectedReturnOrder(order); setReturnModalOpen(true); };
+  const openActionModal = (order, type) => { 
+      setSelectedOrder(order); 
+      setActionType(type);
+      setSelectedReason(type === 'cancel' ? CANCEL_REASONS[0] : RETURN_REASONS[0]);
+      setModalOpen(true); 
+  };
   
-  // ✅ UPDATED: Include reason in Notification AND Order document
-  const handleReturnSubmit = async () => { 
-      if (selectedReturnOrder?.source === 'live') { 
+  const handleActionSubmit = async () => { 
+      if (selectedOrder?.source === 'live') { 
           try { 
-              // 1. Update Order Status and Save Reason
-              await updateDoc(doc(db, "OrderItems", selectedReturnOrder.order_id), { 
-                  orderStatus: "Return Requested", 
-                  returnReason: returnReason, // Saving to order doc for Admin Table
-                  returnDate: serverTimestamp() 
-              }); 
+              if (actionType === 'cancel') {
+                  // --- CANCEL LOGIC ---
+                  await updateDoc(doc(db, "OrderItems", selectedOrder.order_id), { 
+                      orderStatus: "Cancelled", 
+                      cancelReason: selectedReason, 
+                      cancelledDate: serverTimestamp() 
+                  });
+                  
+                  // Notify Admin about Cancellation
+                  await addDoc(collection(db, "notifications"), { 
+                      type: "admin", 
+                      subType: "order_cancelled", 
+                      message: `Order #${selectedOrder.order_id.slice(0,6)} Cancelled by User`, 
+                      orderId: selectedOrder.order_id, 
+                      customerId: user.uid, 
+                      customerName: displayData.fullName, 
+                      cancelReason: selectedReason,
+                      createdAt: serverTimestamp(), 
+                      isRead: false
+                  });
+                  toast.success("Order Cancelled Successfully", { style: { background: '#1e293b', color: '#fff' } });
 
-              // 2. Send Notification to Admin
-              await addDoc(collection(db, "notifications"), { 
-                  type: "admin", 
-                  subType: "return_request", 
-                  message: `Return Req: Order #${selectedReturnOrder.order_id.slice(0,6)}`, 
-                  orderId: selectedReturnOrder.order_id, 
-                  customerId: user.uid, 
-                  customerName: displayData.fullName, 
-                  returnReason: returnReason, // Saving to notification doc for Admin Navbar
-                  createdAt: serverTimestamp(), 
-                  isRead: false, 
-                  fullOrderId: selectedReturnOrder.order_id, 
-                  senderId: user.uid, 
-                  senderName: displayData.fullName 
-              }); 
+              } else if (actionType === 'return') {
+                  // --- RETURN LOGIC ---
+                  await updateDoc(doc(db, "OrderItems", selectedOrder.order_id), { 
+                      orderStatus: "Return Requested", 
+                      returnReason: selectedReason, 
+                      returnDate: serverTimestamp() 
+                  }); 
 
-              toast.success("Return Requested Successfully!", { style: { background: '#1e293b', color: '#fff' } }); 
+                  await addDoc(collection(db, "refunds"), {
+                      orderId: selectedOrder.order_id,
+                      userId: user.uid,
+                      amount: selectedOrder.order_total_amount,
+                      reason: selectedReason,
+                      status: "Pending", 
+                      createdAt: serverTimestamp(),
+                      customerName: displayData.fullName
+                  });
+
+                  await addDoc(collection(db, "notifications"), { 
+                      type: "admin", 
+                      subType: "return_request", 
+                      message: `Return & Refund Req: Order #${selectedOrder.order_id.slice(0,6)}`, 
+                      orderId: selectedReturnOrder.order_id, 
+                      customerId: user.uid, 
+                      customerName: displayData.fullName, 
+                      returnReason: selectedReason,
+                      createdAt: serverTimestamp(), 
+                      isRead: false
+                  });
+                  toast.success("Return Requested Successfully!", { style: { background: '#1e293b', color: '#fff' } }); 
+              }
           } catch { 
-              toast.error("Request Failed.", { style: { background: '#1e293b', color: '#fff' } }); 
+              toast.error("Action Failed.", { style: { background: '#1e293b', color: '#fff' } }); 
           } 
       } else { 
-          toast("This is a demo order. Cannot return.", { icon: 'ℹ️', style: { background: '#1e293b', color: '#fff' } }); 
+          toast("This is a demo order. Action not saved.", { icon: 'ℹ️', style: { background: '#1e293b', color: '#fff' } }); 
       } 
-      setReturnModalOpen(false); 
+      setModalOpen(false); 
   };
 
-  // ... (Return JSX - KEEP EXISTING) ...
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950"><Loader size={32} className="animate-spin text-violet-500" /></div>;
 
   return (
@@ -509,25 +675,38 @@ const UserDashboard = () => {
            />
         )}
 
-        {activeTab === 'orders' && <OrdersTab orders={filteredOrders} onReturnClick={openReturnModal} />}
+        {activeTab === 'orders' && (
+            <OrdersTab 
+                orders={filteredOrders} 
+                onActionClick={openActionModal} 
+                onBuyAgain={handleAddToCart} 
+            />
+        )}
         {activeTab === 'payments' && <PaymentsTab orders={filteredOrders} />}
         {activeTab === 'profile' && <ProfileTab displayData={displayData} handleProfileSave={handleProfileSave} isEditing={isEditingProfile} setIsEditing={setIsEditingProfile} editData={editFormData} setEditData={setEditFormData} />}
 
-        {returnModalOpen && (
+        {modalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                <div className="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-xl p-5 shadow-2xl">
-                    <h3 className="text-lg font-bold text-white mb-3">Return Item</h3>
+                <div className="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-xl p-5 shadow-2xl animate-fade-in-up">
+                    <h3 className="text-lg font-bold text-white mb-3">
+                        {actionType === 'cancel' ? 'Cancel Order' : 'Return Item'}
+                    </h3>
+                    <p className="text-xs text-slate-400 mb-3">Please select a reason for this action:</p>
+                    
                     <div className="space-y-2 mb-4">
-                        {['Wrong Size', 'Damaged', 'Changed Mind', 'Other'].map(r => (
-                            <label key={r} className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${returnReason === r ? 'bg-violet-600/20 border-violet-500' : 'bg-slate-800 border-slate-700'}`}>
-                                <input type="radio" value={r} checked={returnReason === r} onChange={e => setReturnReason(e.target.value)} className="accent-violet-500"/>
-                                <span className="text-xs text-white">{r}</span>
+                        {(actionType === 'cancel' ? CANCEL_REASONS : RETURN_REASONS).map(r => (
+                            <label key={r} className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${selectedReason === r ? 'bg-violet-600/20 border-violet-500' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800'}`}>
+                                <input type="radio" value={r} checked={selectedReason === r} onChange={e => setSelectedReason(e.target.value)} className="accent-violet-500 w-4 h-4"/>
+                                <span className="text-xs text-white font-medium">{r}</span>
                             </label>
                         ))}
                     </div>
+                    
                     <div className="flex gap-2">
-                        <button onClick={() => setReturnModalOpen(false)} className="flex-1 py-1.5 bg-slate-800 rounded text-xs text-slate-300">Cancel</button>
-                        <button onClick={handleReturnSubmit} className="flex-1 py-1.5 bg-rose-600 text-white rounded text-xs font-bold">Submit</button>
+                        <button onClick={() => setModalOpen(false)} className="flex-1 py-2 bg-slate-800 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 transition-colors">Back</button>
+                        <button onClick={handleActionSubmit} className={`flex-1 py-2 rounded-lg text-xs font-bold text-white transition-colors ${actionType === 'cancel' ? 'bg-rose-600 hover:bg-rose-500' : 'bg-amber-600 hover:bg-amber-500'}`}>
+                            Confirm {actionType === 'cancel' ? 'Cancel' : 'Return'}
+                        </button>
                     </div>
                 </div>
             </div>

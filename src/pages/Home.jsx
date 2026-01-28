@@ -5,7 +5,7 @@ import toast, { Toaster } from 'react-hot-toast';
 
 // Firebase & Redux
 import { auth, db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { addItem } from '../slices/cartSlice';
 
 // Icons
@@ -14,8 +14,8 @@ import {
   FaStar, FaArrowRight, FaQuoteLeft, FaCheck, FaClock, FaFire, FaTimes, FaTags, FaUserFriends
 } from "react-icons/fa";
 
-// Data
-import { products } from "../data/dataUtils";
+// Data (Static fallback data)
+import { products as staticProducts } from "../data/dataUtils";
 
 // --- COMPONENT: PRODUCT CARD (RESPONSIVE) ---
 const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
@@ -73,7 +73,7 @@ const ProductCard = ({ product, isAdmin, onAddToCart, onBuyNow }) => {
         {/* Price & Rating Row */}
         <div className="flex items-center justify-between mb-3 sm:mb-4 mt-auto">
             <div className="flex flex-col">
-                <span className="text-sm sm:text-xl font-bold text-white">₹{product.selling_unit_price.toFixed(2)}</span>
+                <span className="text-sm sm:text-xl font-bold text-white">₹{Number(product.selling_unit_price).toFixed(2)}</span>
             </div>
             {/* Rating */}
             <div className="flex flex-col items-end">
@@ -125,6 +125,9 @@ const Home = () => {
   const [activeCoupon, setActiveCoupon] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
+  // New State to hold both static and fetched products
+  const [allProducts, setAllProducts] = useState(staticProducts);
+
   // Lists
   const departments = ["All", "Men", "Women", "Kids"];
   const shopCategories = [
@@ -141,6 +144,32 @@ const Home = () => {
     checkAdmin();
     const timer = setTimeout(checkAdmin, 1000); 
     return () => clearTimeout(timer);
+  }, []);
+
+  // --- NEW: Fetch Products from Firebase ---
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        // Fetch products, ordering by ID or any field you prefer
+        const q = query(collection(db, "products"));
+        const querySnapshot = await getDocs(q);
+        
+        const firebaseProducts = [];
+        querySnapshot.forEach((doc) => {
+          // Merge doc ID and data
+          firebaseProducts.push({ product_id: doc.id, ...doc.data() });
+        });
+
+        // Combine Firebase products (newest) with Static products
+        // We put firebaseProducts first so admin uploads show at the top
+        setAllProducts([...firebaseProducts, ...staticProducts]);
+        
+      } catch (error) {
+        console.error("Error fetching products from Firebase:", error);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   // Fetch Coupons
@@ -185,22 +214,22 @@ const Home = () => {
     return `${d}d ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // --- DATA FILTERING ---
+  // --- DATA FILTERING (Updated to use allProducts state) ---
   const filteredProducts = selectedCategory === "All"
-      ? products.slice(0,8)
-      : products.filter((p) => 
+      ? allProducts.slice(0, 8) // Using allProducts state
+      : allProducts.filter((p) => 
           p.product_department === selectedCategory || 
           p.product_category === selectedCategory
         ).slice(0, 8);
 
-  const trendingProducts = products.slice(8, 16);
+  const trendingProducts = allProducts.slice(8, 16); // Using allProducts state
 
   // Handlers
   const handleAddToCart = (product) => {
     dispatch(addItem({
         product_id: product.product_id,
         product_name: product.product_name,
-        selling_unit_price: product.selling_unit_price,
+        selling_unit_price: Number(product.selling_unit_price), // Ensure number
         image_url: product.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop",
         quantity: 1,
     }));
@@ -212,7 +241,7 @@ const Home = () => {
     dispatch(addItem({
         product_id: product.product_id,
         product_name: product.product_name,
-        selling_unit_price: product.selling_unit_price,
+        selling_unit_price: Number(product.selling_unit_price), // Ensure number
         image_url: product.image_url || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1999&auto=format&fit=crop",
         quantity: 1,
     }));
@@ -451,7 +480,7 @@ const Home = () => {
               <div className="flex flex-col justify-center">
                 <h4 className="font-semibold text-sm text-white line-clamp-1 pr-2">{popupProduct.product_name}</h4>
                 <p className="text-slate-400 text-xs mb-1">{popupProduct.product_department}</p>
-                <span className="text-blue-400 font-bold">₹{popupProduct.selling_unit_price.toFixed(2)}</span>
+                <span className="text-blue-400 font-bold">₹{Number(popupProduct.selling_unit_price).toFixed(2)}</span>
               </div>
             </div>
 
